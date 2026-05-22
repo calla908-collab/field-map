@@ -115,7 +115,9 @@ function renderTiles(){
       var img=new Image();
       img.className='tile';
       img.dataset.tx=tx;img.dataset.ty=ty;img.dataset.z=Z;
-      img.src='https://tile.openstreetmap.org/'+Z+'/'+ntx+'/'+ty+'.png';
+      var daumUrl='https://map2.daumcdn.net/map_2d_png/1906/L'+Z+'/'+ty+'/'+ntx+'.png';
+      img.src=daumUrl;
+      img.onerror=function(){if(this.src.indexOf('daumcdn')>=0){this.onerror=null;this.src='https://tile.openstreetmap.org/'+Z+'/'+ntx+'/'+ty+'.png';}}; 
       var p=tile2px(tx,ty);
       img.style.left=p.px+'px';img.style.top=p.py+'px';
       td.appendChild(img);
