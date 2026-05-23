@@ -94,9 +94,16 @@ function drawTiles(){
     if(TC[k])continue;TC[k]=1;
     var img=new Image();
     img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;
-    var tried=false;
-    img.onerror=function(){if(!tried){tried=true;this.src='https://a.tile.openstreetmap.org/'+Z+'/'+((((+this.dataset.x)%Math.pow(2,Z))+Math.pow(2,Z))%Math.pow(2,Z))+'/'+this.dataset.y+'.png';}};
-    img.src='https://map2.daumcdn.net/map_2d_png/1906/L'+Z+'/'+ty+'/'+ntx+'.png';
+    img.dataset.ntx=ntx; img.dataset.ty=ty; img.dataset.tz=Z;
+    img.onerror=function(){
+      if(this.dataset.tried) return;
+      this.dataset.tried=1;
+      var ox=this.dataset.ntx, oy=this.dataset.ty, oz=this.dataset.tz;
+      this.src='https://a.tile.openstreetmap.org/'+oz+'/'+ox+'/'+oy+'.png';
+    };
+    // 다음지도 타일 (여러 subdomain 시도)
+    var sub=['map1','map2','map3'][Math.abs(tx+ty)%3];
+    img.src='https://'+sub+'.daumcdn.net/map_2d_png/1906/L'+Z+'/'+ty+'/'+ntx+'.png';
     var p=px(tx,ty);
     img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
     td.appendChild(img);
