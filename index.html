@@ -42,7 +42,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 <div id="pop">
   <button onclick="cPop()">×</button>
   <b id="pn"></b><small id="pc"></small>
-  <a class="pk" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+  <a class="pk" id="pk" target="_blank">📍 카카오맵 앱으로 보기</a>
   <a class="pg" id="pg">🚗 카카오맵 길찾기</a>
 </div>
 <div id="tb">
@@ -154,8 +154,37 @@ function sPop(d,x,y){
   var p=document.getElementById('pop');
   document.getElementById('pn').textContent=d[0];
   document.getElementById('pc').textContent=d[1].toFixed(6)+', '+d[2].toFixed(6);
-  document.getElementById('pk').href='https://map.kakao.com/link/map/'+d[0]+','+d[1]+','+d[2];
-  document.getElementById('pg').href='kakaomap://route?ep='+d[1]+','+d[2]+'&by=CAR';
+  // 카카오맵 앱으로 열기 (모바일 우선)
+  var la=d[1],ln=d[2],nm=d[0];
+  var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobile){
+    // 모바일: 앱 딥링크로 바로 열기
+    document.getElementById('pk').href='kakaomap://look?p='+la+','+ln;
+    document.getElementById('pk').onclick=function(e){
+      e.preventDefault();
+      // 앱 설치 확인 후 실패시 웹으로
+      var appUrl='kakaomap://look?p='+la+','+ln;
+      var webUrl='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+      var t=setTimeout(function(){window.location.href=webUrl;},1500);
+      window.location.href=appUrl;
+      window.addEventListener('blur',function(){clearTimeout(t);},{once:true});
+    };
+  }else{
+    // PC: 웹 카카오맵
+    document.getElementById('pk').href='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+    document.getElementById('pk').onclick=null;
+  }
+  document.getElementById('pg').href='kakaomap://route?ep='+la+','+ln+'&by=CAR';
+  document.getElementById('pg').onclick=function(e){
+    if(isMobile){
+      e.preventDefault();
+      var appUrl='kakaomap://route?ep='+la+','+ln+'&by=CAR';
+      var webUrl='https://map.kakao.com/link/to?to='+nm+','+ln+','+la;
+      var t=setTimeout(function(){window.location.href=webUrl;},1500);
+      window.location.href=appUrl;
+      window.addEventListener('blur',function(){clearTimeout(t);},{once:true});
+    }
+  };
   p.style.left=Math.min(x+10,W-250)+'px';
   p.style.top=Math.max(Math.min(y-90,H-190),58)+'px';
   p.style.display='block';
