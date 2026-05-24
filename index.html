@@ -160,25 +160,15 @@ function sPop(d,x,y){
   document.getElementById('pn').textContent=d[0];
   document.getElementById('pc').textContent=d[1].toFixed(6)+', '+d[2].toFixed(6);
   var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(isMobile){
-    document.getElementById('pk').onclick=function(e){
-      e.preventDefault();
-      var t=setTimeout(function(){window.location.href='https://map.kakao.com/link/map/'+d[0]+','+d[1]+','+d[2];},1500);
-      window.addEventListener('blur',function(){clearTimeout(t);},{once:true});
-      window.location.href='kakaomap://look?p='+d[1]+','+d[2]+'&name='+encodeURIComponent(d[0]);
-    };
-    document.getElementById('pg').onclick=function(e){
-      e.preventDefault();
-      var t=setTimeout(function(){window.location.href='https://map.kakao.com/link/to?to='+d[0]+','+d[2]+','+d[1];},1500);
-      window.addEventListener('blur',function(){clearTimeout(t);},{once:true});
-      window.location.href='kakaomap://route?ep='+d[1]+','+d[2]+'&ename='+encodeURIComponent(d[0])+'&by=CAR';
-    };
-  }else{
-    document.getElementById('pk').href='https://map.kakao.com/link/map/'+d[0]+','+d[1]+','+d[2];
-    document.getElementById('pk').onclick=null;
-    document.getElementById('pg').href='kakaomap://route?ep='+d[1]+','+d[2]+'&by=CAR';
-    document.getElementById('pg').onclick=null;
-  }
+  // 다음지도 링크 형식 - 이름 포함, 앱에서도 표시됨
+  var kakaoUrl='https://map.kakao.com/link/map/'+d[0]+','+d[1]+','+d[2];
+  var naviUrl='https://map.kakao.com/link/to?to='+d[0]+','+d[2]+','+d[1];
+  document.getElementById('pk').href=kakaoUrl;
+  document.getElementById('pk').onclick=null;
+  document.getElementById('pk').target='_blank';
+  document.getElementById('pg').href=naviUrl;
+  document.getElementById('pg').onclick=null;
+  document.getElementById('pg').target='_blank';
   pop.style.left=Math.min(x+14,W-260)+'px';
   pop.style.top=Math.max(Math.min(y-90,H-190),58)+'px';
   pop.style.display='block';
