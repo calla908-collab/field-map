@@ -15,11 +15,14 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .dot{width:12px;height:12px;background:#e63946;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
 .mlb{background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
 .cl{width:38px;height:38px;background:rgba(255,235,0,.95);border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a0a00;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:190px;max-width:250px;display:none}
+#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:200px;max-width:260px;display:none}
 #pop b{font-size:15px;font-weight:700;display:block;margin-bottom:3px;padding-right:22px;color:#111}
 #pop small{color:#999;display:block;margin-bottom:10px;font-size:11px}
 #pop a{display:block;padding:9px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;margin-bottom:6px}
-.pk{background:#FFEB00;color:#1a0a00}.pg{background:#3a3a3c;color:#fff}
+.pk{background:#FFEB00;color:#1a0a00}
+.ps{background:#FF6B2B;color:#fff}
+.pg{background:#3a3a3c;color:#fff}
+#phint{font-size:10px;color:#aaa;text-align:center;margin-top:4px;display:none}
 #pop button{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer;line-height:1}
 #tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:8px;padding:10px 12px}
 #tb h1{font-size:14px;font-weight:700;color:#1a0a00;white-space:nowrap}
@@ -49,8 +52,10 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 <div id="pop">
   <button onclick="cPop()">×</button>
   <b id="pn"></b><small id="pc"></small>
-  <a class="pk" id="pk" target="_blank">📍 카카오맵 앱으로 보기</a>
+  <a class="pk" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+  <a class="ps" id="ps" target="_blank">⭐ 즐겨찾기 저장</a>
   <a class="pg" id="pg">🚗 카카오맵 길찾기</a>
+  <div id="phint">즐겨찾기 열리면 앱에서 ★ 누르세요</div>
 </div>
 <div id="tb">
   <h1>📍 현장지도</h1>
@@ -163,11 +168,20 @@ function sPop(d,x,y){
   // 다음지도 링크 형식 - 이름 포함, 앱에서도 표시됨
   var kakaoUrl='https://map.kakao.com/link/map/'+d[0]+','+d[1]+','+d[2];
   var naviUrl='https://map.kakao.com/link/to?to='+d[0]+','+d[2]+','+d[1];
+  var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   document.getElementById('pk').href=kakaoUrl;
-  document.getElementById('pk').onclick=null;
   document.getElementById('pk').target='_blank';
+
+  // 즐겨찾기 버튼: 카카오맵에서 별표 누르면 저장
+  document.getElementById('ps').href=kakaoUrl;
+  document.getElementById('ps').target='_blank';
+  document.getElementById('ps').onclick=function(){
+    document.getElementById('phint').style.display='block';
+    setTimeout(function(){document.getElementById('phint').style.display='none';},4000);
+  };
+
   document.getElementById('pg').href=naviUrl;
-  document.getElementById('pg').onclick=null;
   document.getElementById('pg').target='_blank';
   pop.style.left=Math.min(x+14,W-260)+'px';
   pop.style.top=Math.max(Math.min(y-90,H-190),58)+'px';
