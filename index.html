@@ -11,38 +11,64 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 #tl,#mk{position:absolute;top:0;left:0}
 #mk{pointer-events:none}
 .tile{position:absolute;width:256px;height:256px}
+/* 마커 */
 .m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;cursor:pointer;display:flex;align-items:center;gap:3px}
-.dot{width:12px;height:12px;background:#e63946;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
-.mlb{background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0;transition:background .3s}
+.dot-todo{background:#e63946}
+.dot-done{background:#2dc653}
+.mlb{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4;transition:background .3s,color .3s}
+.mlb-todo{background:rgba(0,0,0,.65);color:#fff}
+.mlb-done{background:rgba(45,198,83,.85);color:#fff}
+.done-icon{font-size:11px;position:absolute;left:50%;transform:translateX(-50%) translateY(-60%);top:0;pointer-events:none}
 .cl{width:38px;height:38px;background:rgba(255,235,0,.95);border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a0a00;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:240px;display:none}
-.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:4px;padding-right:22px}
-.pcoord{color:#999;font-size:11px;margin-bottom:4px}
-.paddr{color:#555;font-size:12px;margin-bottom:12px;min-height:16px;line-height:1.5}
-.paddr.loading{color:#bbb}
-.pbtn{display:block;padding:11px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;background:#FFEB00;color:#1a0a00}
+/* 팝업 */
+#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:250px;display:none}
+.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:3px;padding-right:22px}
+.pcoord{color:#bbb;font-size:10px;margin-bottom:4px}
+.paddr{color:#444;font-size:12px;margin-bottom:10px;line-height:1.6;min-height:18px}
+.paddr.ld{color:#bbb;font-style:italic}
+.pbtns{display:flex;flex-direction:column;gap:6px}
+.pbtn{display:block;padding:10px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;border:none;width:100%}
+.pbtn-k{background:#FFEB00;color:#1a0a00}
+.pbtn-done{background:#2dc653;color:#fff}
+.pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
 .pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer;line-height:1}
+.pstatus{font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.pstatus-todo{background:#fff0f0;color:#e63946}
+.pstatus-done{background:#f0fff4;color:#2dc653}
+/* 상단바 */
 #tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:8px;padding:10px 12px}
 #tb h1{font-size:14px;font-weight:700;color:#1a0a00;white-space:nowrap}
 #si{flex:1;min-width:0;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 14px;font-size:14px;color:#1a0a00;outline:none}
 #si::placeholder{color:rgba(0,0,0,.4)}
 .tbtn{background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:12px;font-weight:600;color:#1a0a00;cursor:pointer;white-space:nowrap}
-#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.7);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff}
+/* 상태 배지 */
+#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.7);border-radius:20px;padding:4px 14px;font-size:12px;color:#fff;display:flex;gap:10px}
+#bd .bdone{color:#2dc653;font-weight:600}
+/* 줌 */
 #zm{position:fixed;right:12px;top:76px;z-index:100;display:flex;flex-direction:column;gap:6px}
 #zm button{width:40px;height:40px;background:#fff;border:none;border-radius:10px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:270px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+/* 사이드 패널 */
+#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:280px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
 #sh.on{transform:translateX(0)}
-#shhead{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#shhead{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9f9f9}
 #shhead strong{font-size:14px;color:#111}
-#shhead span{font-size:12px;color:#999}
+#shcount{font-size:11px;color:#888;margin-top:2px}
 #shclose{background:none;border:none;font-size:22px;color:#bbb;cursor:pointer;padding:0 0 0 8px}
+/* 필터 탭 */
+#filter{display:flex;border-bottom:1px solid #f0f0f0;flex-shrink:0}
+.ftab{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent}
+.ftab.on{color:#1a0a00;border-bottom-color:#FFEB00}
 #srch2{width:100%;padding:8px 12px;border:none;border-bottom:1px solid #f0f0f0;font-size:13px;outline:none;flex-shrink:0}
 #srch2::placeholder{color:#bbb}
 #shl{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:.5px solid #f2f2f2;cursor:pointer}
 .li:hover,.li:active{background:#f8f8f8}
-.lnum{min-width:60px;font-size:11px;font-weight:700;color:#1a0a00;background:#FFEB00;border-radius:6px;padding:3px 6px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnum{min-width:60px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 6px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnum-todo{background:#FFEB00;color:#1a0a00}
+.lnum-done{background:#2dc653;color:#fff}
 .lcoord{font-size:10px;color:#aaa;margin-top:1px}
+.ldone-mark{font-size:10px;color:#2dc653;margin-left:auto;flex-shrink:0}
 </style>
 </head><body>
 <div id="map"><div id="tl"></div><div id="mk"></div></div>
@@ -50,9 +76,14 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 <div id="pop">
   <button class="pclose" onclick="cPop()">×</button>
   <div class="pname" id="pn"></div>
+  <div class="pstatus" id="pst"></div>
   <div class="pcoord" id="pc"></div>
-  <div class="paddr loading" id="pa">주소 조회 중...</div>
-  <a class="pbtn" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+  <div class="paddr ld" id="pa">주소 조회 중...</div>
+  <div class="pbtns">
+    <a class="pbtn pbtn-k" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+    <button class="pbtn pbtn-done" id="pdone" onclick="toggleDone()">✅ 완료 처리</button>
+    <button class="pbtn pbtn-undo" id="pundo" onclick="toggleDone()" style="display:none">↩ 완료 취소</button>
+  </div>
 </div>
 
 <div id="tb">
@@ -60,15 +91,27 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <input id="si" type="search" placeholder="포인트 검색..." oninput="srch(this.value)">
   <button class="tbtn" onclick="togSh()">☰ 목록</button>
 </div>
-<div id="bd"><span id="cnt">-</span></div>
+<div id="bd">
+  <span id="cnt">-</span>
+  <span>|</span>
+  <span class="bdone">✅ <span id="dcnt">0</span> 완료</span>
+</div>
 <div id="zm"><button onclick="dz(1)">+</button><button onclick="dz(-1)">−</button></div>
 
 <div id="sh">
   <div id="shhead">
-    <div><strong>포인트 목록</strong> <span id="shc"></span></div>
+    <div>
+      <strong>포인트 목록</strong>
+      <div id="shcount"></div>
+    </div>
     <button id="shclose" onclick="closeSh()">×</button>
   </div>
-  <input id="srch2" type="search" placeholder="목록 내 검색..." oninput="srch(this.value)">
+  <div id="filter">
+    <div class="ftab on" id="ft-all" onclick="setFilter('all')">전체</div>
+    <div class="ftab" id="ft-todo" onclick="setFilter('todo')">미완료</div>
+    <div class="ftab" id="ft-done" onclick="setFilter('done')">완료 ✅</div>
+  </div>
+  <input id="srch2" type="search" placeholder="검색..." oninput="srch(this.value)">
   <div id="shl"></div>
 </div>
 
@@ -78,6 +121,15 @@ var W=window.innerWidth,H=window.innerHeight;
 var Z=13,CX=0,CY=0,VP=D,shOn=false,TC={};
 var R=Math.PI/180;
 var addrCache={};
+var curFilter='all';
+var curPop=null; // 현재 팝업에 표시된 포인트
+
+// 완료 상태 - localStorage에 저장
+var DONE_KEY='fieldmap_done';
+var doneSet=new Set(JSON.parse(localStorage.getItem(DONE_KEY)||'[]'));
+
+function saveDone(){localStorage.setItem(DONE_KEY,JSON.stringify([...doneSet]));}
+function isDone(nm){return doneSet.has(nm);}
 
 function ll2t(la,ln,z){
   var n=Math.pow(2,z);
@@ -139,16 +191,26 @@ function cluster(pts){
 function drawMarkers(){
   var md=document.getElementById('mk');
   md.innerHTML='';
-  cluster(VP).forEach(function(g){
+  cluster(D).forEach(function(g){
     var div=document.createElement('div');
     div.className='m';
     div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
     if(g.pts.length===1){
       var nm=g.pts[0][0];
-      div.innerHTML='<div class="dot"></div><span class="mlb">'+nm+'</span>';
+      var done=isDone(nm);
+      if(done){
+        div.innerHTML='<div class="dot dot-done"></div><span class="mlb mlb-done">✓ '+nm+'</span>';
+      }else{
+        div.innerHTML='<div class="dot dot-todo"></div><span class="mlb mlb-todo">'+nm+'</span>';
+      }
       (function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
     }else{
-      div.innerHTML='<div class="cl">'+g.pts.length+'</div>';
+      // 클러스터 내 완료 비율 계산
+      var doneCount=g.pts.filter(function(p){return isDone(p[0]);}).length;
+      var allDone=doneCount===g.pts.length;
+      var clStyle=allDone?'background:rgba(45,198,83,.9);border-color:rgba(0,0,0,.2)':'';
+      var clText=allDone?'✓'+g.pts.length:g.pts.length+(doneCount>0?'<br><small style="font-size:8px">✓'+doneCount+'</small>':'');
+      div.innerHTML='<div class="cl" style="'+clStyle+'">'+clText+'</div>';
       (function(la,ln){div.onclick=function(){
         var nz=Math.min(Z+2,18),f=Math.pow(2,nz-Z);
         var c=ll2t(la,ln,nz);CX=c.x;CY=c.y;Z=nz;
@@ -157,63 +219,95 @@ function drawMarkers(){
     }
     md.appendChild(div);
   });
-  document.getElementById('cnt').textContent=VP.length+'개';
+  document.getElementById('cnt').textContent=D.length+'개';
+  document.getElementById('dcnt').textContent=doneSet.size;
 }
 
 function draw(){drawTiles();drawMarkers();}
 
-// 주소 조회 (Nominatim - 무료, API키 불필요)
+// 주소 조회 (Nominatim)
 function getAddr(la,ln,cb){
   var key=la.toFixed(5)+','+ln.toFixed(5);
   if(addrCache[key]){cb(addrCache[key]);return;}
-  var url='https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18';
-  fetch(url,{headers:{'Accept-Language':'ko'}})
+  var url='https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18&addressdetails=1';
+  fetch(url)
     .then(function(r){return r.json();})
     .then(function(d){
-      var addr='';
+      var addr='주소 없음';
       if(d&&d.address){
         var a=d.address;
-        // 한국 주소 조합
         var parts=[];
-        if(a.province||a.state)parts.push(a.province||a.state);
-        if(a.city||a.county)parts.push(a.city||a.county);
-        if(a.suburb||a.quarter||a.neighbourhood)parts.push(a.suburb||a.quarter||a.neighbourhood);
+        // 시/도
+        if(a.province)parts.push(a.province);
+        else if(a.state)parts.push(a.state);
+        // 시/군/구
+        if(a.city)parts.push(a.city);
+        else if(a.county)parts.push(a.county);
+        else if(a.town)parts.push(a.town);
+        // 읍/면/동
+        if(a.suburb)parts.push(a.suburb);
+        else if(a.quarter)parts.push(a.quarter);
+        else if(a.neighbourhood)parts.push(a.neighbourhood);
+        else if(a.village)parts.push(a.village);
+        // 도로명
         if(a.road)parts.push(a.road);
+        // 번지
         if(a.house_number)parts.push(a.house_number);
-        addr=parts.join(' ')||d.display_name||'주소 없음';
-        // display_name이 너무 길면 자르기
-        if(addr.length>50)addr=addr.substring(0,50)+'...';
+        if(parts.length>0)addr=parts.join(' ');
+        else if(d.display_name)addr=d.display_name.split(',').slice(0,4).join(',');
       }
-      addrCache[key]=addr||'주소 정보 없음';
-      cb(addrCache[key]);
+      addrCache[key]=addr;
+      cb(addr);
     })
     .catch(function(){cb('주소 조회 실패');});
 }
 
 function sPop(d,x,y){
+  curPop=d;
   var nm=d[0],la=d[1],ln=d[2];
-  document.getElementById('pn').textContent=nm;
-  document.getElementById('pc').textContent=la.toFixed(6)+', '+ln.toFixed(6);
-  document.getElementById('pa').textContent='주소 조회 중...';
-  document.getElementById('pa').className='paddr loading';
+  var done=isDone(nm);
 
-  // 주소 조회
+  document.getElementById('pn').textContent=nm;
+  document.getElementById('pc').textContent=la.toFixed(6)+' / '+ln.toFixed(6);
+  document.getElementById('pa').textContent='주소 조회 중...';
+  document.getElementById('pa').className='paddr ld';
+
+  var pst=document.getElementById('pst');
+  pst.textContent=done?'✅ 완료':'📌 미완료';
+  pst.className='pstatus '+(done?'pstatus-done':'pstatus-todo');
+
+  document.getElementById('pdone').style.display=done?'none':'block';
+  document.getElementById('pundo').style.display=done?'block':'none';
+
+  var mapUrl='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+  document.getElementById('pk').href=mapUrl;
+
   getAddr(la,ln,function(addr){
     var pa=document.getElementById('pa');
     if(pa){pa.textContent=addr;pa.className='paddr';}
   });
 
-  // 카카오맵 웹 링크 (앱 아닌 웹으로 열기)
-  var mapUrl='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
-  document.getElementById('pk').href=mapUrl;
-
   var pop=document.getElementById('pop');
-  var left=Math.min(x+14,W-255);
-  var top=Math.max(Math.min(y-110,H-200),58);
+  var left=Math.min(x+14,W-265);
+  var top=Math.max(Math.min(y-120,H-240),58);
   pop.style.left=left+'px';pop.style.top=top+'px';pop.style.display='block';
 }
-function cPop(){document.getElementById('pop').style.display='none';}
 
+function toggleDone(){
+  if(!curPop)return;
+  var nm=curPop[0];
+  if(isDone(nm)){doneSet.delete(nm);}else{doneSet.add(nm);}
+  saveDone();
+  sPop(curPop,
+    parseFloat(document.getElementById('pop').style.left)+10,
+    parseFloat(document.getElementById('pop').style.top)+60);
+  drawMarkers();
+  buildList(getFilteredList());
+}
+
+function cPop(){document.getElementById('pop').style.display='none';curPop=null;}
+
+// 드래그/터치
 var dr={on:0,sx:0,sy:0,cx:0,cy:0};
 var mapEl=document.getElementById('map');
 mapEl.onmousedown=function(e){dr={on:1,sx:e.clientX,sy:e.clientY,cx:CX,cy:CY};mapEl.classList.add('gr');};
@@ -238,20 +332,39 @@ function dz(d){
   TC={};document.getElementById('tl').innerHTML='';draw();
 }
 
+// 검색 및 필터
 function srch(q){
   q=q.trim().toUpperCase();
-  VP=q?D.filter(function(x){return x[0].toUpperCase().indexOf(q)>=0;}):D;
-  drawMarkers();buildList(VP);
   document.getElementById('si').value=q;
   document.getElementById('srch2').value=q;
+  buildList(getFilteredList(q));
   if(!shOn)openSh();
 }
 
+function setFilter(f){
+  curFilter=f;
+  ['all','todo','done'].forEach(function(t){
+    document.getElementById('ft-'+t).className='ftab'+(t===f?' on':'');
+  });
+  buildList(getFilteredList());
+}
+
+function getFilteredList(q){
+  var base=D;
+  if(curFilter==='todo')base=D.filter(function(d){return!isDone(d[0]);});
+  else if(curFilter==='done')base=D.filter(function(d){return isDone(d[0]);});
+  if(q){var qu=q.toUpperCase();base=base.filter(function(d){return d[0].toUpperCase().indexOf(qu)>=0;});}
+  return base;
+}
+
 function buildList(d){
-  document.getElementById('shc').textContent=d.length+'개';
+  var todo=D.filter(function(x){return!isDone(x[0]);}).length;
+  var done=doneSet.size;
+  document.getElementById('shcount').textContent='전체 '+D.length+' | 미완료 '+todo+' | 완료 '+done;
   var h='';
   for(var i=0;i<Math.min(d.length,500);i++){
-    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+d[i][0].replace(/'/g,"\\'")+'\')"><div class="lnum">'+d[i][0]+'</div><div><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div></div>';
+    var nm=d[i][0],dn=isDone(nm);
+    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+nm.replace(/'/g,"\\'")+'\')"><div class="lnum '+(dn?'lnum-done':'lnum-todo')+'">'+nm+'</div><div style="flex:1"><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div>'+(dn?'<div class="ldone-mark">✅</div>':'')+'</div>';
   }
   if(d.length>500)h+='<div style="padding:12px;text-align:center;font-size:11px;color:#ccc">검색으로 더 찾아보세요 (전체 '+d.length+'개)</div>';
   document.getElementById('shl').innerHTML=h;
