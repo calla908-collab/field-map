@@ -91,6 +91,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <input id="si" type="search" placeholder="포인트 검색..." oninput="srch(this.value)">
   <button class="tbtn" onclick="togSh()">☰ 목록</button>
 </div>
+<div id="workerBadge" style="display:none;position:fixed;top:58px;right:12px;z-index:100;background:#3a3a3c;color:#FFEB00;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600"></div>
 <div id="bd">
   <span id="cnt">-</span>
   <span>|</span>
@@ -135,7 +136,23 @@ function ll2t(la,ln,z){
   var n=Math.pow(2,z);
   return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};
 }
+// URL 파라미터로 담당 구역 설정
+var workerInfo = '';
 (function(){
+  var params = new URLSearchParams(window.location.search);
+  var worker = parseInt(params.get('worker')||'0');
+  var workers = parseInt(params.get('workers')||'1');
+  if(worker>0 && workers>1){
+    var total=D.length;
+    var size=Math.ceil(total/workers);
+    var start=(worker-1)*size;
+    var end=Math.min(start+size,total);
+    D=D.slice(start,end);
+    workerInfo='담당자 '+worker+'/'+workers;
+    document.getElementById('workerBadge').textContent='👤 '+workerInfo+' ('+D.length+'개)';
+    document.getElementById('workerBadge').style.display='block';
+    document.title='현장지도 - 담당자'+worker;
+  }
   var sla=0,sln=0;
   D.forEach(function(d){sla+=d[1];sln+=d[2];});
   var c=ll2t(sla/D.length,sln/D.length,Z);CX=c.x;CY=c.y;
