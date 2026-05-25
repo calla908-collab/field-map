@@ -73,8 +73,8 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </head><body>
 <div id="map"><div id="tl"></div><div id="mk"></div></div>
 
-<div id="pop">
-  <button class="pclose" onclick="cPop()">×</button>
+<div id="pop" onclick="event.stopPropagation()">
+  <button class="pclose" onclick="event.stopPropagation();cPop()">×</button>
   <div class="pname" id="pn"></div>
   <div class="pstatus" id="pst"></div>
   <div class="pcoord" id="pc"></div>
@@ -295,12 +295,17 @@ function sPop(d,x,y){
 
 function toggleDone(){
   if(!curPop)return;
+  event && event.stopPropagation();
   var nm=curPop[0];
   if(isDone(nm)){doneSet.delete(nm);}else{doneSet.add(nm);}
   saveDone();
-  sPop(curPop,
-    parseFloat(document.getElementById('pop').style.left)+10,
-    parseFloat(document.getElementById('pop').style.top)+60);
+  // 팝업 상태만 업데이트 (위치 유지)
+  var done=isDone(nm);
+  var pst=document.getElementById('pst');
+  pst.textContent=done?'✅ 완료':'📌 미완료';
+  pst.className='pstatus '+(done?'pstatus-done':'pstatus-todo');
+  document.getElementById('pdone').style.display=done?'none':'block';
+  document.getElementById('pundo').style.display=done?'block':'none';
   drawMarkers();
   buildList(getFilteredList());
 }
