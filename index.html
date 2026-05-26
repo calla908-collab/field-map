@@ -2,113 +2,15 @@
 <html lang="ko"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>현장 위치 지도</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
-#map{position:fixed;inset:0;overflow:hidden;background:#e8e0d8}
-#map.mode-pan{cursor:grab}
-#map.mode-pan.gr{cursor:grabbing}
-#map.mode-sel{cursor:crosshair}
-#tl,#mk{position:absolute;top:0;left:0}
-#mk{pointer-events:none}
-.tile{position:absolute;width:256px;height:256px}
-/* 마커 */
-.m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;display:flex;align-items:center;gap:3px}
-.m.mode-sel-on{cursor:crosshair;pointer-events:none}
-.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0;transition:all .2s}
-.dot-todo{background:#e63946}
-.dot-done{background:#2dc653}
-.dot-w1{background:#3b82f6}
-.dot-w2{background:#f97316}
-.dot-sel{background:#a855f7;border-color:#fff;transform:scale(1.4)}
-.mlb{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-.mlb-todo{background:rgba(0,0,0,.65);color:#fff}
-.mlb-done{background:rgba(45,198,83,.85);color:#fff}
-.mlb-w1{background:rgba(59,130,246,.85);color:#fff}
-.mlb-w2{background:rgba(249,115,22,.85);color:#fff}
-.mlb-sel{background:rgba(168,85,247,.9);color:#fff}
-.cl{width:38px;height:38px;background:rgba(255,235,0,.95);border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a0a00;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
-/* 선택 사각형 */
-#selRect{position:fixed;z-index:300;border:2px solid #a855f7;background:rgba(168,85,247,.12);pointer-events:none;display:none}
-/* 선택 액션 패널 */
-#selPanel{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:400;background:#fff;border-radius:14px;padding:14px 18px;box-shadow:0 6px 24px rgba(0,0,0,.2);display:none;min-width:280px;text-align:center}
-#selPanel .selCount{font-size:14px;font-weight:700;color:#111;margin-bottom:12px}
-#selPanel .selBtns{display:flex;gap:8px}
-.sbtn{flex:1;padding:10px 8px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer}
-.sbtn-1{background:#3b82f6;color:#fff}
-.sbtn-2{background:#f97316;color:#fff}
-.sbtn-cancel{background:#f0f0f0;color:#666}
-/* 팝업 */
-#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:250px;display:none}
-.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:3px;padding-right:22px}
-.pcoord{color:#bbb;font-size:10px;margin-bottom:4px}
-.paddr{color:#444;font-size:12px;margin-bottom:10px;line-height:1.6;min-height:18px}
-.paddr.ld{color:#bbb;font-style:italic}
-.pbtns{display:flex;flex-direction:column;gap:6px}
-.pbtn{display:block;padding:10px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;border:none;width:100%}
-.pbtn-k{background:#FFEB00;color:#1a0a00}
-.pbtn-done{background:#2dc653;color:#fff}
-.pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
-.pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer;line-height:1}
-.pstatus{font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
-.pstatus-todo{background:#fff0f0;color:#e63946}
-.pstatus-done{background:#f0fff4;color:#2dc653}
-.pstatus-w1{background:#eff6ff;color:#3b82f6}
-.pstatus-w2{background:#fff7ed;color:#f97316}
-/* 상단바 */
-#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px;flex-wrap:wrap}
-#tb h1{font-size:14px;font-weight:700;color:#1a0a00;white-space:nowrap}
-#si{flex:1;min-width:120px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 14px;font-size:14px;color:#1a0a00;outline:none}
-#si::placeholder{color:rgba(0,0,0,.4)}
-.tbtn{border:none;border-radius:20px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
-.tbtn-normal{background:rgba(0,0,0,.12);color:#1a0a00}
-.tbtn-active{background:#a855f7;color:#fff}
-/* 상태바 */
-#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.7);border-radius:20px;padding:4px 14px;font-size:12px;color:#fff;display:flex;gap:8px;flex-wrap:wrap}
-.bd-w1{color:#60a5fa;font-weight:600}
-.bd-w2{color:#fb923c;font-weight:600}
-.bd-done{color:#4ade80;font-weight:600}
-/* 범례 */
-#legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
-.lg{display:flex;align-items:center;gap:6px}
-.lgdot{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.5);flex-shrink:0}
-/* 줌 */
-#zm{position:fixed;right:12px;top:76px;z-index:100;display:flex;flex-direction:column;gap:6px}
-#zm button{width:40px;height:40px;background:#fff;border:none;border-radius:10px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-/* 사이드패널 */
-#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:280px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
-#sh.on{transform:translateX(0)}
-#shhead{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9f9f9}
-#shcount{font-size:11px;color:#888;margin-top:2px}
-#shclose{background:none;border:none;font-size:22px;color:#bbb;cursor:pointer;padding:0 0 0 8px}
-#filter{display:flex;border-bottom:1px solid #f0f0f0;flex-shrink:0;overflow-x:auto}
-.ftab{flex:1;min-width:50px;padding:8px 4px;text-align:center;font-size:11px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;white-space:nowrap}
-.ftab.on{color:#1a0a00;border-bottom-color:#FFEB00}
-#srch2{width:100%;padding:8px 12px;border:none;border-bottom:1px solid #f0f0f0;font-size:13px;outline:none;flex-shrink:0}
-#srch2::placeholder{color:#bbb}
-#shl{flex:1;overflow-y:auto}
-.li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:.5px solid #f2f2f2;cursor:pointer}
-.li:hover,.li:active{background:#f8f8f8}
-.lnum{min-width:58px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 5px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lnum-todo{background:#FFEB00;color:#1a0a00}
-.lnum-done{background:#2dc653;color:#fff}
-.lnum-w1{background:#3b82f6;color:#fff}
-.lnum-w2{background:#f97316;color:#fff}
-.lcoord{font-size:10px;color:#aaa;margin-top:1px}
-.ltag{font-size:10px;margin-left:auto;flex-shrink:0;padding:2px 5px;border-radius:4px}
-</style>
-
-<!-- Firebase (선택적 로딩) -->
+<title>MMS측량(광주)</title>
 <script>
 var db=null,fbState={},PROJ_ID='p095bc246';
+var workerNames=JSON.parse(localStorage.getItem('fm_wnames')||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
 function fbLoad(){
-  var s1=document.createElement('script');
-  s1.async=true;
+  var s1=document.createElement('script');s1.async=true;
   s1.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
   s1.onload=function(){
-    var s2=document.createElement('script');
-    s2.async=true;
+    var s2=document.createElement('script');s2.async=true;
     s2.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
     s2.onload=function(){
       try{
@@ -116,7 +18,7 @@ function fbLoad(){
         db=firebase.database();
         db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
           fbState=snap.val()||{};
-          drawMarkers();updateStats();buildList(getFilteredList());
+          drawMarkers();updateStats();buildList(getFltList());
         });
       }catch(e){console.warn('FB:',e);}
     };
@@ -126,488 +28,530 @@ function fbLoad(){
 }
 </script>
 </head><body>
-<div id="map">
-  <div id="tl"></div>
-  <div id="mk"></div>
-</div>
-<div id="selRect"></div>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+#map{position:fixed;inset:0;overflow:hidden;background:#e8e0d8}
+#map.pan{cursor:grab}#map.pan.gr{cursor:grabbing}#map.sel{cursor:crosshair}
+#tl,#mk{position:absolute;top:0;left:0}
+#mk{pointer-events:none}
+.tile{position:absolute;width:256px;height:256px}
+.m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;display:flex;align-items:center;gap:3px}
+.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
+.dt{background:#e63946}.dd{background:#2dc653}
+.dw1{background:#3b82f6}.dw2{background:#f97316}.dw3{background:#a855f7}
+.dsel{background:#FFD700;border-color:#333;transform:scale(1.5)}
+.mlb{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;line-height:1.4;pointer-events:none}
+.mt{background:rgba(0,0,0,.7);color:#fff}.md{background:rgba(45,198,83,.9);color:#fff}
+.mw1{background:rgba(59,130,246,.9);color:#fff}.mw2{background:rgba(249,115,22,.9);color:#fff}
+.mw3{background:rgba(168,85,247,.9);color:#fff}.msel{background:rgba(255,215,0,.95);color:#333}
+.cl{width:38px;height:38px;border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+/* 라쏘 캔버스 */
+#lassoCanvas{position:fixed;inset:0;z-index:250;pointer-events:none;display:none}
+/* 선택 패널 */
+#selPanel{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.22);display:none;min-width:320px}
+.sp-cnt{font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-align:center}
+.sp-row{display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap}
+.sp-btn{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;font-size:12px;font-weight:700;border:none;cursor:pointer;text-align:center}
+.sp-w1{background:#3b82f6;color:#fff}.sp-w2{background:#f97316;color:#fff}
+.sp-w3{background:#a855f7;color:#fff}.sp-inv{background:#1a1a2e;color:#FFEB00}
+.sp-can{background:#f0f0f0;color:#444}.sp-clr{background:#fee2e2;color:#dc2626}
+.sp-rest{background:#e8f8f0;color:#065f46;font-size:11px}
+/* 팝업 */
+#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:250px;display:none}
+.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:3px;padding-right:22px}
+.pcoord{color:#bbb;font-size:10px;margin-bottom:4px}
+.paddr{color:#444;font-size:12px;margin-bottom:10px;line-height:1.6;min-height:18px}
+.paddr.ld{color:#bbb;font-style:italic}
+.pst{font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.pst-t{background:#fff0f0;color:#e63946}.pst-d{background:#f0fff4;color:#2dc653}
+.pst-w1{background:#eff6ff;color:#3b82f6}.pst-w2{background:#fff7ed;color:#f97316}.pst-w3{background:#faf5ff;color:#a855f7}
+.pbtns{display:flex;flex-direction:column;gap:6px}
+.pbtn{display:block;padding:10px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;border:none;width:100%}
+.pbtn-k{background:#FFEB00;color:#1a0a00}.pbtn-done{background:#2dc653;color:#fff}
+.pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
+.pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer}
+/* 상단바 */
+#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
+#tb h1{font-size:13px;font-weight:700;color:#1a0a00;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+#si{flex:1;min-width:60px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:13px;color:#1a0a00;outline:none}
+.tbtn{border:none;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tbtn-n{background:rgba(0,0,0,.12);color:#1a0a00}.tbtn-a{background:#a855f7;color:#fff}
+/* 상태바 */
+#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:20px;padding:4px 14px;font-size:11px;color:#fff;display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+#syncing{display:none;position:fixed;top:58px;right:12px;z-index:100;background:rgba(0,0,0,.65);color:#FFEB00;border-radius:16px;padding:3px 12px;font-size:11px}
+/* 줌/패널 */
+#zm{position:fixed;right:12px;top:88px;z-index:100;display:flex;flex-direction:column;gap:6px}
+#zm button{width:40px;height:40px;background:#fff;border:none;border-radius:10px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:280px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+#sh.on{transform:translateX(0)}
+#shh{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9f9f9}
+#shc{font-size:11px;color:#888;margin-top:2px}
+#shx{background:none;border:none;font-size:22px;color:#bbb;cursor:pointer}
+#flt{display:flex;border-bottom:1px solid #f0f0f0;flex-shrink:0;overflow-x:auto}
+.ft{flex:1;min-width:44px;padding:8px 3px;text-align:center;font-size:10px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;white-space:nowrap}
+.ft.on{color:#1a0a00;border-bottom-color:#FFEB00}
+#s2{width:100%;padding:8px 12px;border:none;border-bottom:1px solid #f0f0f0;font-size:13px;outline:none;flex-shrink:0}
+#shl{flex:1;overflow-y:auto}
+.li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:.5px solid #f2f2f2;cursor:pointer}
+.li:hover{background:#f8f8f8}
+.lnum{min-width:58px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 5px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lt{background:#FFEB00;color:#1a0a00}.ld2{background:#2dc653;color:#fff}
+.lw1{background:#3b82f6;color:#fff}.lw2{background:#f97316;color:#fff}.lw3{background:#a855f7;color:#fff}
+.lcoord{font-size:10px;color:#aaa;margin-top:1px}
+/* 담당자 설정 팝업 */
+#settingPop{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+#settingBox{background:#fff;border-radius:16px;padding:20px;width:300px;max-width:90vw}
+#settingBox h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wdot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.winput{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;outline:none}
+#legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
+.lg{display:flex;align-items:center;gap:6px}
+.lgd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+
+<div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
+<canvas id="lassoCanvas"></canvas>
 
 <div id="selPanel">
-  <div class="selCount" id="selCount">0개 선택됨</div>
-  <div class="selBtns">
-    <button class="sbtn sbtn-1" onclick="assignWorker(1)">🔵 담당자1 할당</button>
-    <button class="sbtn sbtn-2" onclick="assignWorker(2)">🟠 담당자2 할당</button>
-    <button class="sbtn sbtn-cancel" onclick="clearSel()">취소</button>
+  <div class="sp-cnt" id="spCnt">0개 선택됨</div>
+  <div class="sp-row">
+    <button class="sp-btn sp-w1" id="spW1" onclick="assignW(1)">🔵 <span id="spN1">담당자1</span></button>
+    <button class="sp-btn sp-w2" id="spW2" onclick="assignW(2)">🟠 <span id="spN2">담당자2</span></button>
+    <button class="sp-btn sp-w3" id="spW3" onclick="assignW(3)">🟣 <span id="spN3">담당자3</span></button>
+  </div>
+  <div class="sp-row">
+    <button class="sp-btn sp-inv" onclick="invertSel()">↔ 선택 반전</button>
+    <button class="sp-btn sp-can" onclick="clearSel()">✕ 선택취소</button>
+    <button class="sp-btn sp-clr" onclick="clearAssign()">🗑 할당해제</button>
+  </div>
+  <div class="sp-row" id="restRow" style="display:none">
+    <button class="sp-btn sp-rest" id="restBtn1" onclick="assignRest(1)">나머지→<span id="rn1">담당1</span></button>
+    <button class="sp-btn sp-rest" id="restBtn2" onclick="assignRest(2)">나머지→<span id="rn2">담당2</span></button>
+    <button class="sp-btn sp-rest" id="restBtn3" onclick="assignRest(3)">나머지→<span id="rn3">담당3</span></button>
   </div>
 </div>
 
 <div id="pop" onclick="event.stopPropagation()">
   <button class="pclose" onclick="event.stopPropagation();cPop()">×</button>
   <div class="pname" id="pn"></div>
-  <div class="pstatus" id="pst"></div>
+  <div class="pst" id="pst"></div>
   <div class="pcoord" id="pc"></div>
   <div class="paddr ld" id="pa">주소 조회 중...</div>
   <div class="pbtns">
     <a class="pbtn pbtn-k" id="pk" target="_blank">📍 카카오맵에서 보기</a>
-    <button class="pbtn pbtn-done" id="pdone" onclick="event.stopPropagation();toggleDone()">✅ 완료 처리</button>
-    <button class="pbtn pbtn-undo" id="pundo" onclick="event.stopPropagation();toggleDone()" style="display:none">↩ 완료 취소</button>
+    <button class="pbtn pbtn-done" id="pdn" onclick="event.stopPropagation();toggleDone()">✅ 완료 처리</button>
+    <button class="pbtn pbtn-undo" id="pud" onclick="event.stopPropagation();toggleDone()" style="display:none">↩ 완료 취소</button>
   </div>
 </div>
 
 <div id="tb">
-  <h1>📍 현장지도</h1>
+  <h1>📍 MMS측량(광주)</h1>
   <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
-  <button class="tbtn tbtn-normal" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
-  <button class="tbtn tbtn-normal" onclick="togSh()">☰ 목록</button>
+  <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
+  <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
+  <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
-<div id="syncing" style="display:none;position:fixed;top:58px;right:12px;z-index:100;background:rgba(0,0,0,.65);color:#FFEB00;border-radius:16px;padding:3px 12px;font-size:11px">🔄 동기화중</div>
 <div id="bd">
   <span id="cnt">-</span>
-  <span class="bd-w1">🔵 <span id="w1cnt">0</span></span>
-  <span class="bd-w2">🟠 <span id="w2cnt">0</span></span>
-  <span class="bd-done">✅ <span id="dcnt">0</span></span>
+  <span style="color:#60a5fa;font-weight:600">🔵<span id="w1c">0</span></span>
+  <span style="color:#fb923c;font-weight:600">🟠<span id="w2c">0</span></span>
+  <span style="color:#c084fc;font-weight:600">🟣<span id="w3c">0</span></span>
+  <span style="color:#4ade80;font-weight:600">✅<span id="dnc">0</span></span>
 </div>
+<div id="syncing">🔄 동기화중</div>
 <div id="zm"><button onclick="dz(1)">+</button><button onclick="dz(-1)">−</button></div>
 <div id="legend">
-  <div class="lg"><div class="lgdot" style="background:#e63946"></div>미할당</div>
-  <div class="lg"><div class="lgdot" style="background:#3b82f6"></div>담당자1</div>
-  <div class="lg"><div class="lgdot" style="background:#f97316"></div>담당자2</div>
-  <div class="lg"><div class="lgdot" style="background:#2dc653"></div>완료</div>
+  <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
+  <div class="lg"><div class="lgd" style="background:#3b82f6"></div><span id="lgn1">담당자1</span></div>
+  <div class="lg"><div class="lgd" style="background:#f97316"></div><span id="lgn2">담당자2</span></div>
+  <div class="lg"><div class="lgd" style="background:#a855f7"></div><span id="lgn3">담당자3</span></div>
+  <div class="lg"><div class="lgd" style="background:#2dc653"></div>완료</div>
+</div>
+<div id="sh">
+  <div id="shh">
+    <div><strong>포인트 목록</strong><div id="shc"></div></div>
+    <button id="shx" onclick="closeSh()">×</button>
+  </div>
+  <div id="flt">
+    <div class="ft on" id="ft-all" onclick="setFlt('all')">전체</div>
+    <div class="ft" id="ft-todo" onclick="setFlt('todo')">미할당</div>
+    <div class="ft" id="ft-w1" onclick="setFlt('w1')">🔵</div>
+    <div class="ft" id="ft-w2" onclick="setFlt('w2')">🟠</div>
+    <div class="ft" id="ft-w3" onclick="setFlt('w3')">🟣</div>
+    <div class="ft" id="ft-done" onclick="setFlt('done')">✅</div>
+  </div>
+  <input id="s2" type="search" placeholder="검색..." oninput="srch(this.value)">
+  <div id="shl"></div>
 </div>
 
-<div id="sh">
-  <div id="shhead">
-    <div><strong>포인트 목록</strong><div id="shcount"></div></div>
-    <button id="shclose" onclick="closeSh()">×</button>
+<!-- 담당자 이름 설정 -->
+<div id="settingPop">
+  <div id="settingBox">
+    <h3>⚙ 담당자 이름 설정</h3>
+    <div class="wrow"><div class="wdot" style="background:#3b82f6"></div><input class="winput" id="wn1" placeholder="담당자1"></div>
+    <div class="wrow"><div class="wdot" style="background:#f97316"></div><input class="winput" id="wn2" placeholder="담당자2"></div>
+    <div class="wrow"><div class="wdot" style="background:#a855f7"></div><input class="winput" id="wn3" placeholder="담당자3"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="saveWorkerNames()" style="flex:1;padding:10px;background:#FFEB00;color:#1a0a00;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">저장</button>
+      <button onclick="document.getElementById('settingPop').style.display='none'" style="flex:1;padding:10px;background:#f0f0f0;color:#666;border:none;border-radius:10px;font-size:14px;cursor:pointer">취소</button>
+    </div>
   </div>
-  <div id="filter">
-    <div class="ftab on" id="ft-all" onclick="setFilter('all')">전체</div>
-    <div class="ftab" id="ft-todo" onclick="setFilter('todo')">미할당</div>
-    <div class="ftab" id="ft-w1" onclick="setFilter('w1')">담당1🔵</div>
-    <div class="ftab" id="ft-w2" onclick="setFilter('w2')">담당2🟠</div>
-    <div class="ftab" id="ft-done" onclick="setFilter('done')">완료✅</div>
-  </div>
-  <input id="srch2" type="search" placeholder="검색..." oninput="srch(this.value)">
-  <div id="shl"></div>
 </div>
 
 <script>
 var DALL=[["K0006",35.1254693279,126.7869811469],["K0007",35.1252204196,126.7870044448],["K0008",35.1254359814,126.7868697542],["K0009",35.1284537867,126.7857543707],["K0010",35.1287669937,126.7855759967],["K0011",35.1284394959,126.7853138962],["K0012",35.126628824,126.7864684231],["K0013",35.1281561748,126.7858223376],["K0014",35.1252472159,126.7871005483],["K0015",35.1251995779,126.7871456878],["K0016",35.124935829,126.7872415082],["K0017",35.1275794027,126.7859838463],["K0018",35.1249694042,126.7873333797],["K0019",35.1291057123,126.7834752489],["K0020",35.1283463273,126.782001926],["K0021",35.1280609442,126.7820504219],["K0022",35.1281232766,126.7835352494],["K0023",35.1260458178,126.7833348155],["K0024",35.1260815049,126.7834270502],["K0025",35.1267817771,126.7828650448],["K0026",35.1257537062,126.7834502208],["K0027",35.1258262209,126.7834905367],["K0028",35.1241410077,126.7855032852],["K0029",35.1240621767,126.7854493853],["K0030",35.1254389587,126.7839036495],["K0031",35.1245188928,126.7849057043],["K0032",35.123435791,126.7861902075],["K0033",35.1235545176,126.7860912258],["K0034",35.1244099916,126.7851067791],["K0035",35.1240057601,126.7856735831],["K0036",35.123958152,126.7856042601],["K0037",35.1416562302,126.8258889467],["K0038",35.1416220627,126.8259424904],["K0039",35.1411533197,126.8256462807],["K0040",35.1339646207,126.818184259],["K0041",35.1339032267,126.8182012479],["K0042",35.1404286251,126.8252417479],["K0043",35.1403788576,126.825279258],["K0044",35.1314385359,126.8169600939],["K0045",35.1295239286,126.8175791467],["K0046",35.1295128445,126.8176638647],["K0047",35.1233770624,126.8203655716],["K0048",35.1232280987,126.8204967136],["K0049",35.1251497305,126.8195662384],["K0050",35.1156399562,126.8204259482],["K0051",35.1154990558,126.8204044896],["K0052",35.1185112731,126.8216408171],["K0053",35.1108805705,126.8152293258],["K0054",35.1107585392,126.8151054321],["K0055",35.1076005204,126.8076223049],["K0056",35.1074656992,126.8074889054],["K0057",35.1121495104,126.8174677784],["K0058",35.1098375278,126.8128829649],["K0059",35.1055098496,126.8043846337],["K0060",35.1107595775,126.7915625691],["K0061",35.1113454926,126.7905492645],["K0062",35.1152226662,126.7872420215],["K0063",35.1151214646,126.7872491438],["K0064",35.1638315719,126.8186177549],["K0065",35.1643242141,126.8186396939],["K0066",35.165579996,126.8188491043],["K0067",35.165597094,126.8189232352],["K0068",35.1654940737,126.8189545059],["K0069",35.1598165392,126.8220932755],["K0070",35.1603223146,126.8219690101],["K0071",35.159489016,126.8221823199],["K0072",35.1594014878,126.8222631853],["K0073",35.1593931074,126.8219978101],["K0074",35.1593143845,126.8222185394],["K0075",35.1534064269,126.8236921113],["K0076",35.1533113094,126.8237873176],["K0077",35.1461658748,126.8266243266],["K0078",35.1461491472,126.8266960517],["K0079",35.1538521581,126.823559597],["K0080",35.141904892,126.8260177568],["K0081",35.1418883886,126.8260768619],["K0082",35.1428517405,126.8266050052],["K0083",35.1424588321,126.8264438416],["K0084",35.142278342,126.8262364565],["K0085",35.144538805,126.8269938395],["K0086",35.1490131943,126.8254387712],["K0087",35.1064586611,126.8057958632],["K0088",35.1536857464,126.8073995217],["K0089",35.1537793665,126.8073964605],["K0090",35.1535830278,126.8149476736],["K0091",35.1535977734,126.8149911478],["K0092",35.1534931164,126.8148053452],["K0093",35.1535992754,126.8106760845],["K0094",35.1536765664,126.8105274517],["K0095",35.153711487,126.8106413466],["K0096",35.1535601642,126.8105600541],["K0097",35.1536686511,126.8086362263],["K0098",35.1537016099,126.8094208905],["K0099",35.1536863903,126.8079824084],["K0100",35.1536351288,126.8128191998],["K0101",35.1482078228,126.8146917075],["K0102",35.148332206,126.8147711773],["K0103",35.1565676165,126.8157732057],["K0104",35.1524788759,126.8152299968],["K0105",35.1523509448,126.8152783828],["K0106",35.1521611422,126.815192433],["K0107",35.1558352094,126.8157417923],["K0108",35.1481694073,126.8146592874],["K0109",35.1521290326,126.8147107456],["K0110",35.1522615697,126.8148007894],["K0111",35.149718392,126.8144698059],["K0112",35.152388683,126.8148024979],["K0113",35.1519626433,126.8103789611],["K0114",35.1520511107,126.8106306689],["K0115",35.1521037255,126.8104877308],["K0116",35.1565036924,126.8107909761],["K0117",35.1564729633,126.8106184252],["K0118",35.1563607554,126.8108114771],["K0119",35.1563523748,126.8106642679],["K0120",35.1593716909,126.8119065769],["K0121",35.1592068768,126.8120637519],["K0122",35.1593176841,126.81217423],["K0123",35.1592515722,126.8118507684],["K0124",35.159329789,126.8117876991],["K0125",35.1615929235,126.8120200447],["K0126",35.1615770943,126.8121994292],["K0127",35.1530926912,126.8105382717],["K0128",35.1550375288,126.8106948772],["K0129",35.1581718928,126.8110919434],["K0130",35.1602539526,126.8121561492],["K0131",35.1575442847,126.8108884986],["K0132",35.1588292931,126.8117586559],["K0133",35.1560380987,126.8152461186],["K0134",35.1559668627,126.8154203779],["K0135",35.1560911765,126.8154773253],["K0136",35.1544555258,126.8152028385],["K0137",35.1571038388,126.8076743837],["K0138",35.1571727459,126.8077324701],["K0139",35.1573249932,126.8072785988],["K0140",35.1573985561,126.8073389631],["K0141",35.1564808784,126.8095274542],["K0142",35.1562839325,126.8130591936],["K0143",35.1562890541,126.811867995],["K0144",35.1562126967,126.8140559166],["K0145",35.1590807054,126.80056734],["K0146",35.1591887193,126.8006413717],["K0147",35.1590686004,126.8010058355],["K0148",35.1591449551,126.801061644],["K0149",35.1581402332,126.8059276625],["K0150",35.1580657398,126.8064363458],["K0151",35.1588535032,126.8025684739],["K0152",35.1577132924,126.7996201613],["K0153",35.1582640781,126.7994920295],["K0154",35.1580224406,126.7993572064],["K0155",35.1586975341,126.799612331],["K0156",35.1596691934,126.8079967063],["K0157",35.1595993572,126.8080957949],["K0158",35.1597259934,126.8080684601],["K0159",35.1593721565,126.8106009139],["K0160",35.1594447863,126.8108104806],["K0161",35.1594904127,126.8106191371],["K0162",35.1595057767,126.8089670911],["K0163",35.1595849244,126.8091891862],["K0164",35.159632413,126.8090285944],["K0165",35.1594350092,126.8099744918],["K0166",35.1594685306,126.8101954479],["K0167",35.1595281243,126.8100530793],["K0168",35.1594564257,126.81030977],["K0169",35.1596379999,126.8084783395],["K0170",35.1595597834,126.8093621642],["K0171",35.1593158218,126.8112004283],["K0172",35.1594340781,126.8108894952],["K0173",35.159372622,126.8115717258],["K0174",35.1618047545,126.8155070804],["K0175",35.1618173246,126.8155976268],["K0176",35.1589647765,126.8154216592],["K0177",35.1591049154,126.8135435318],["K0178",35.1603945548,126.8154079918],["K0179",35.1626041206,126.8104837445],["K0180",35.1626567285,126.8106460448],["K0181",35.1628047756,126.8105002592],["K0182",35.1626879209,126.8104296444],["K0183",35.1623722726,126.8121021914],["K0184",35.1620780389,126.8119922828],["K0185",35.1625864294,126.8114114187],["K0186",35.1631292677,126.8124455847],["K0187",35.1630026368,126.8125794112],["K0188",35.1631702365,126.8127667684],["K0189",35.1632582262,126.8126095934],["K0190",35.1620314829,126.8127929642],["K0191",35.1630231212,126.8145418208],["K0192",35.16305571,126.814156856],["K0193",35.1629477012,126.8147434149],["K0194",35.16305571,126.8134734864],["K0195",35.1643843928,126.8140270158],["K0196",35.1630678145,126.8130976331],["K0197",35.1630119479,126.8156705196],["K0198",35.1650249833,126.8160247328],["K0199",35.1656348431,126.8158436399],["K0200",35.1655915479,126.8160446644],["K0201",35.1657907989,126.8159358948],["K0202",35.1674830164,126.8167604941],["K0203",35.1676543311,126.8168145942],["K0204",35.167621744,126.8167001298],["K0205",35.1681924803,126.8176078724],["K0206",35.169196147,126.81841254],["K0207",35.1682557917,126.8174740458],["K0208",35.170508902,126.8201232419],["K0209",35.1706401763,126.8202428316],["K0210",35.1732926174,126.825277557],["K0211",35.173444369,126.8254324541],["K0212",35.173391768,126.8252376937],["K0213",35.1742566544,126.8267223141],["K0214",35.1745378103,126.8269694661],["K0215",35.1743208921,126.827038942],["K0216",35.1744987092,126.8267177583],["K0217",35.1647572953,126.8152792905],["K0218",35.1642991976,126.8159239358],["K0219",35.1666473866,126.8162382858],["K0220",35.1679611138,126.8172758686],["K0221",35.1702458872,126.8197006917],["K0222",35.1731231765,126.8249632069],["K0223",35.1738321257,126.8261778964],["K0224",35.1637694025,126.8183498978],["K0225",35.164342028,126.8183350915],["K0226",35.1656427573,126.8182291692],["K0227",35.1662926486,126.8180526321],["K0228",35.168671039,126.8169694913],["K0229",35.1697789756,126.8154091307],["K0230",35.1718146533,126.8133983157],["K0231",35.171835601,126.8135332812],["K0232",35.1689708351,126.8165680117],["K0233",35.1701011123,126.8150440975],["K0234",35.1711745817,126.8177821316],["K0235",35.1714282834,126.8176073029],["K0236",35.1720059755,126.8175338407],["K0237",35.1720906971,126.8172149349],["K0238",35.1715395395,126.8172661876],["K0239",35.1716861739,126.8171454589],["K0240",35.1718090672,126.817188739],["K0241",35.1717820679,126.8176807651],["K0242",35.1716526575,126.8176055945],["K0243",35.173665479,126.8250121818],["K0244",35.1735481744,126.825164801],["K0245",35.1734290076,126.824850451],["K0246",35.1736161366,126.8247935035],["K0247",35.1766296916,126.8288447462],["K0248",35.1767069608,126.8286704869],["K0249",35.1715781765,126.8180816753],["K0250",35.1715902797,126.8204951088],["K0251",35.1724030491,126.8214711884],["K0252",35.1719859588,126.8216192518],["K0253",35.1722121933,126.8217593426],["K0254",35.1721917112,126.821591917],["K0255",35.1729407014,126.8237137796],["K0256",35.1739927207,126.8257795489],["K0257",35.1757860099,126.8285167288],["K0258",35.1710791525,126.8197408397],["K0259",35.1717141042,126.8193786538],["K0260",35.1717401725,126.8189948279],["K0261",35.1720427503,126.8094515717],["K0262",35.1721758841,126.8094709338],["K0263",35.1720343712,126.8090563563],["K0264",35.1721684361,126.8091144427],["K0265",35.1719575631,126.8111281051],["K0266",35.172075801,126.811420815],["K0267",35.1718858755,126.8113069201],["K0268",35.172010165,126.8102368772],["K0269",35.1720185441,126.8098769692],["K0270",35.1724589093,126.8125136369],["K0271",35.1721358509,126.8129236586],["K0272",35.1718714448,126.8126867572],["K0273",35.1718081362,126.8144532675],["K0274",35.1719682697,126.8147140869],["K0275",35.1720576464,126.8144555454],["K0276",35.1746830428,126.7965262055],["K0277",35.1735104693,126.7976133326],["K0278",35.1732702735,126.7975267725],["K0279",35.1731753122,126.798032466],["K0280",35.1730207671,126.7979049037],["K0281",35.1734192322,126.7976361116],["K0282",35.1729318569,126.7979225574],["K0283",35.1730477659,126.7980825798],["K0284",35.1729793378,126.7982762011],["K0285",35.1726106625,126.8000398641],["K0286",35.1726935214,126.8004504554],["K0287",35.1727647429,126.8001810938],["K0288",35.1725310619,126.8002875856],["K0289",35.1724039801,126.8033764161],["K0290",35.1722550195,126.8036998777],["K0291",35.1725026663,126.8039811982],["K0292",35.1727149344,126.8035597869],["K0293",35.1722578126,126.8060256122],["K0294",35.1724384272,126.806187343],["K0295",35.1723420684,126.8063183222],["K0296",35.1721735566,126.8062306231],["K0297",35.1720827835,126.8082904129],["K0298",35.1720404227,126.8084840343],["K0299",35.1722149863,126.8084436016],["K0300",35.172239658,126.8083331235],["K0301",35.1734541444,126.7970888465],["K0302",35.1728229303,126.7989908918],["K0303",35.1726637295,126.8009316614],["K0304",35.1725278034,126.8015501109],["K0305",35.1726162485,126.8021902004],["K0306",35.172354637,126.8043371198],["K0307",35.1722876047,126.8074065882],["K0308",35.1722117278,126.8087892727],["K0309",35.169317182,126.8177015509],["K0310",35.1721456265,126.8101400665],["K0311",35.1720599739,126.811747124],["K0312",35.172071146,126.8128314037],["K0313",35.1720059755,126.8127038414],["K0314",35.1718514281,126.8131332253],["K0315",35.1720022515,126.8132106738],["K0316",35.1718197738,126.8127414267],["K0317",35.1718104637,126.8129863008],["K0318",35.1718262909,126.8139657972],["K0319",35.1719138057,126.8158450636],["K0320",35.1717629822,126.8152892563],["K0321",35.1718914615,126.8163985929],["K0322",35.1707788986,126.8173029187],["K0323",35.1720609049,126.8107061243],["K0324",35.1272581108,126.7823598044],["K0325",35.1273224205,126.782417321],["K0326",35.1287729482,126.7841169703],["K0327",35.1276052635,126.7829651839],["K0328",35.1085870941,126.7948980399],["K0329",35.10534728,126.8042102544],["K0330",35.105757759,126.7985702116],["K0331",35.1341526803,126.7892359389],["K0332",35.1343100787,126.7893221393],["K0333",35.1340809855,126.78962602],["K0334",35.1341160663,126.7896480969],["K0335",35.1360801079,126.7829213062],["K0336",35.1360645829,126.7827128494],["K0337",35.1354041411,126.7857957088],["K0338",35.1353287872,126.7857023209],["K0339",35.1350859231,126.7861536961],["K0340",35.1348020502,126.7869393928],["K0341",35.1357543601,126.7841321443],["K0342",35.1455271787,126.7945930065],["K0343",35.1460286387,126.7897373991],["K0344",35.1459849051,126.7897594176],["K0345",35.1455906771,126.7913305455],["K0346",35.1479095555,126.7802927722],["K0347",35.1480611227,126.7803062006],["K0348",35.1480066921,126.7787866515],["K0349",35.1481079446,126.7788069281],["K0350",35.1480695706,126.7783353229],["K0351",35.1481904103,126.7783676776],["K0352",35.1481224232,126.7789702069],["K0353",35.1480325075,126.7799612648],["K0354",35.147987968,126.7791531611],["K0355",35.1396398602,126.7861521358],["K0356",35.1396889765,126.7862028901],["K0357",35.137971913,126.7865076234],["K0358",35.1428148035,126.7834870117],["K0359",35.1467224792,126.7807760039],["K0360",35.1503246339,126.779949975],["K0361",35.150373351,126.7799788094],["K0362",35.1502757429,126.7802556273],["K0363",35.1508656608,126.7804984129],["K0364",35.1489135446,126.7796982566],["K0365",35.1505045036,126.7804018482],["K0366",35.1450818595,126.7844190318],["K0367",35.1451642315,126.7845889637],["K0368",35.1451727692,126.784464817],["K0369",35.1454458571,126.7840801827],["K0370",35.1464320085,126.7826453901],["K0371",35.1465482302,126.7824009814],["K0372",35.1486064242,126.7809282594],["K0373",35.1617700523,126.7952065607],["K0374",35.1618163837,126.7952777],["K0375",35.1627390381,126.7939102657],["K0376",35.1626701314,126.794083233],["K0377",35.1460006707,126.789426445],["K0378",35.1459558068,126.7894358833],["K0379",35.1459774936,126.7866285327],["K0380",35.1457340998,126.7858784699],["K0381",35.1470420886,126.7702979158],["K0382",35.1468168755,126.7707120018],["K0383",35.1468597706,126.7707914326],["K0384",35.1449448012,126.7781173511],["K0385",35.1450820746,126.7764193845],["K0386",35.145187964,126.7775756017],["K0387",35.145165911,126.7773064397],["K0388",35.1448868328,126.7796223514],["K0389",35.1453088273,126.7746904645],["K0390",35.1463699833,126.7716590524],["K0391",35.144858993,126.7811013104],["K0392",35.1448216187,126.7789639771],["K0393",35.1448153054,126.7795530167],["K0394",35.1487580596,126.7686406721],["K0395",35.148847451,126.7687259619],["K0396",35.1482718337,126.7696518868],["K0397",35.1482350741,126.7697833895],["K0398",35.1481201409,126.769729502],["K0399",35.1490286596,126.7692238236],["K0400",35.1489539464,126.7695197636],["K0401",35.1493396906,126.7690925066],["K0402",35.1493554375,126.7691650037],["K0403",35.149267401,126.7691043504],["K0404",35.1492848356,126.7692195705],["K0405",35.1484139772,126.7702785714],["K0406",35.1484742353,126.7704693864],["K0407",35.1483754265,126.7704106712],["K0408",35.1485335124,126.7703378174],["K0409",35.1484333931,126.769596483],["K0410",35.1489125955,126.7691085554],["K0411",35.1490801954,126.7698946589],["K0412",35.1491631566,126.769264017],["K0413",35.1508088124,126.7735492723],["K0414",35.1506196294,126.7730576389],["K0415",35.1506747136,126.7732612138],["K0416",35.1507168647,126.7733982449],["K0417",35.1503801706,126.7736037238],["K0418",35.148897392,126.7741321367],["K0419",35.1485067754,126.775355385],["K0420",35.1481363537,126.7774219309],["K0421",35.1498539088,126.7771701317],["K0422",35.1490831266,126.777084728],["K0423",35.1499822824,126.7763616925],["K0424",35.1490763744,126.7724033357],["K0425",35.1486187957,126.7710318548],["K0426",35.1483384853,126.769969736],["K0427",35.1466657471,126.7778292997],["K0428",35.1465351629,126.7777813104],["K0429",35.1486092744,126.7750205868],["K0430",35.1483330016,126.7761620309],["K0431",35.1482848572,126.7718335568],["K0432",35.1476339615,126.7725366979],["K0433",35.1470800456,126.7744489469],["K0434",35.1469218815,126.7758415706],["K0435",35.1467495259,126.7770262188],["K0436",35.1480289266,126.7740063809],["K0437",35.1474214338,126.7774663267],["K0438",35.1472147944,126.7768079441],["K0439",35.1477474781,126.7769255934],["K0440",35.1467009693,126.7896046158],["K0441",35.1466233252,126.7896440012],["K0442",35.1479254183,126.7935270474],["K0443",35.1481667682,126.7936729622],["K0444",35.1521013496,126.792993134],["K0445",35.1518569729,126.7930271532],["K0446",35.1519889785,126.7928568904],["K0447",35.1520394858,126.7931571153],["K0448",35.1533249819,126.7938582777],["K0449",35.1533368566,126.7941145864],["K0450",35.153290365,126.7940346856],["K0451",35.1534767829,126.7940329415],["K0452",35.1511467594,126.7931510723],["K0453",35.1510975791,126.7933190957],["K0454",35.1510282421,126.7931718207],["K0455",35.1512588523,126.7952997283],["K0456",35.1514483426,126.7952688425],["K0457",35.1503025809,126.7955881862],["K0458",35.1502501203,126.7956751417],["K0459",35.1501752398,126.7956190388],["K0460",35.1524715362,126.7929184279],["K0461",35.1606361667,126.7911173006],["K0462",35.1607562951,126.7918763315],["K0463",35.1530974626,126.7928154254],["K0464",35.1532591533,126.792791316],["K0465",35.1531938286,126.7929630702],["K0466",35.1553964863,126.7922433224],["K0467",35.155246936,126.7924392927],["K0468",35.1555272635,126.7924010079],["K0469",35.1577264938,126.7917405389],["K0470",35.1577860447,126.7921907965],["K0471",35.1576298596,126.7920228265],["K0472",35.1579458779,126.7919660255],["K0473",35.1485626977,126.7934785828],["K0474",35.1537192146,126.7928293338],["K0475",35.1565968552,126.7923260359],["K0476",35.1587139779,126.7917566139],["K0477",35.1514301755,126.7932081204],["K0478",35.1502067882,126.7969073176],["K0479",35.150031977,126.7968539084],["K0480",35.1501190052,126.7968351116],["K0481",35.1523134982,126.7951210188],["K0482",35.1501861217,126.7962169759],["K0483",35.1506192928,126.7955198719],["K0484",35.1511591705,126.7938569973],["K0485",35.1521859021,126.794049705],["K0486",35.1533526166,126.7977272635],["K0487",35.1532396628,126.7977072779],["K0488",35.1532987059,126.7976354968],["K0489",35.1533407577,126.7966791308],["K0490",35.153389477,126.7972777161],["K0491",35.1533771558,126.7958084597],["K0492",35.1531980634,126.7931954572],["K0493",35.1612041772,126.8092152397],["K0494",35.1612162819,126.8093860821],["K0495",35.1604415774,126.8101207044],["K0496",35.1605067572,126.8101412055],["K0497",35.1604276103,126.8103063531],["K0498",35.1604899967,126.8103245763],["K0499",35.160465787,126.8092437134],["K0500",35.1599052392,126.8090683152],["K0501",35.1608671071,126.809297244],["K0502",35.1605719369,126.8095136444],["K0503",35.161166932,126.8102459888],["K0504",35.1611431881,126.8104088586],["K0505",35.1611017528,126.8107961013],["K0506",35.1610863891,126.8109806111],["K0507",35.160319598,126.810841944],["K0508",35.1604974458,126.8107616481],["K0509",35.1599061703,126.8106916027],["K0510",35.1597516,126.8101745197],["K0511",35.160949047,126.8109296431],["K0512",35.1610021216,126.8103544737],["K0513",35.1349866389,126.7859326779],["K0514",35.1312183303,126.7833943926],["K0515",35.1325075484,126.7842037551],["K0516",35.1316053016,126.7837206279],["K0517",35.1327417643,126.7844739576],["K0518",35.1452122899,126.7927565764],["K0519",35.1453069035,126.7930311371],["K0520",35.1453357687,126.7928291389],["K0521",35.1453862827,126.7935645692],["K0522",35.1474805815,126.7918897492],["K0523",35.1475856158,126.7921868631],["K0524",35.1472785306,126.7920917474],["K0525",35.1465224385,126.7923829778],["K0526",35.1461038988,126.7926761694],["K0527",35.1469786603,126.7923045319],["K0528",35.1487866848,126.7803719296],["K0529",35.1487738563,126.7804219388],["K0530",35.1482833685,126.7803067214],["K0531",35.1479576444,126.7793977295],["K0532",35.147959248,126.779663465],["K0533",35.1481709186,126.779477156],["K0534",35.1448216065,126.7816295154],["K0535",35.1449968029,126.7816908013],["K0536",35.1447486414,126.7818859355],["K0537",35.1448544809,126.7819751677],["K0538",35.1437726681,126.7854448228],["K0539",35.1463137548,126.7877929646],["K0540",35.1459002067,126.7727085686],["K0541",35.1458425022,126.77306142],["K0542",35.1459482938,126.7729639658],["K0543",35.1482598754,126.7766445416],["K0544",35.1483395602,126.7770578818],["K0545",35.1481293569,126.7768713746],["K0546",35.1484824432,126.7768293685],["K0547",35.148517477,126.774263635],["K0548",35.148698828,126.7745366748],["K0549",35.1487139406,126.7742216289],["K0550",35.1494970425,126.7740141187],["K0551",35.1497182331,126.7740342816],["K0552",35.1497553272,126.7737083142],["K0553",35.1494997903,126.7736982327],["K0554",35.1489313403,126.771619728],["K0555",35.1488256621,126.7713197641],["K0556",35.1487042108,126.7716264796],["K0557",35.1478863817,126.7719737046],["K0558",35.1479305463,126.7721251333],["K0559",35.1480243959,126.7720219303],["K0560",35.1473209155,126.7736143429],["K0561",35.1472128692,126.7733471726],["K0562",35.1470866836,126.7736114494],["K0563",35.1471781682,126.7737821684],["K0564",35.147076431,126.773931668],["K0565",35.1470709104,126.7740049711],["K0566",35.1469936216,126.7750746171],["K0567",35.1468674356,126.7752501587],["K0568",35.1469707504,126.7753244262],["K0569",35.146753868,126.7764114335],["K0570",35.1466891976,126.7765725074],["K0571",35.1467869919,126.7767326167],["K0572",35.1469297399,126.7764972753],["K0573",35.1476663472,126.7767885585],["K0574",35.1473303794,126.776618804],["K0575",35.1464399792,126.7731971906],["K0576",35.1462759362,126.7732000842],["K0577",35.1463469164,126.7733061807],["K0578",35.1463847724,126.7730438329],["K0579",35.1475713142,126.7712638223],["K0580",35.1473922891,126.7720826947],["K0581",35.1469285569,126.7722678814],["K0582",35.146191943,126.7740927419],["K0583",35.1461698602,126.7754826065],["K0584",35.1456402668,126.7769009244],["K0585",35.145690742,126.7764408512],["K0586",35.1457640887,126.7759634168],["K0587",35.1458200845,126.7755419242],["K0588",35.145883967,126.7751040348],["K0589",35.1460898102,126.7741308402],["K0590",35.1462262501,126.7736437606],["K0591",35.1464731032,126.7770677853],["K0592",35.1465306758,126.7766067476],["K0593",35.1465827278,126.7761553551],["K0594",35.1466513417,126.7756750271],["K0595",35.1468303684,126.7743652171],["K0596",35.146768064,126.7748368644],["K0597",35.1468634923,126.7738704214],["K0598",35.1466931409,126.7751763733],["K0599",35.1466497643,126.7724583729],["K0600",35.1469825803,126.7717282358],["K0601",35.1468161725,126.772083177],["K0602",35.1474218637,126.770809054],["K0603",35.1476624039,126.7702718197],["K0604",35.1471225676,126.7729869266],["K0605",35.1472597944,126.7726126952],["K0606",35.147456959,126.7722982636],["K0607",35.1477558595,126.7718324033],["K0608",35.1480295221,126.7716182812],["K0609",35.1482290507,126.7705949319],["K0610",35.1467282365,126.7726295742],["K0611",35.1465358021,126.7729864443],["K0612",35.1467929069,126.7737879555],["K0613",35.1460515597,126.7746280471],["K0614",35.1465886428,126.7751884298],["K0615",35.1464703428,126.7760101957],["K0616",35.1464214455,126.7764683398],["K0617",35.1457088815,126.7767977214],["K0618",35.1459462721,126.777322417],["K0619",35.1480922199,126.770537061],["K0620",35.1465843051,126.7891907617],["K0621",35.1464802012,126.7891869036],["K0622",35.1465354078,126.788318841],["K0623",35.1464525978,126.7880931447],["K0624",35.1465882484,126.7881606607],["K0625",35.1464628505,126.7873369658],["K0626",35.1464691598,126.7869318699],["K0627",35.1466947182,126.7870649728],["K0628",35.1473508845,126.7849893387],["K0629",35.1475543581,126.7846517588],["K0630",35.1476395329,126.785008629],["K0631",35.1480054682,126.7837142512],["K0632",35.1479281803,126.7832512845],["K0633",35.1478398512,126.7835444968],["K0634",35.1481490027,126.7833940326],["K0635",35.1469076574,126.7835030226],["K0636",35.1479920611,126.7812692082],["K0637",35.1479400101,126.7810030024],["K0638",35.1480803901,126.7810261507],["K0639",35.1478863817,126.781251847],["K0640",35.1496213999,126.7834162164],["K0641",35.1500204489,126.7833853519],["K0642",35.1498595677,126.7837711575],["K0643",35.1486008982,126.7863714873],["K0644",35.1488595738,126.7862518875],["K0645",35.1489226652,126.786626119],["K0646",35.1486292895,126.7867495767],["K0647",35.1499210811,126.7878828807],["K0648",35.149764143,126.7880188772],["K0649",35.1516820803,126.7835223129],["K0650",35.1517246656,126.7834104293],["K0651",35.1521032003,126.7834181454],["K0652",35.1521268587,126.7835801838],["K0653",35.1475291211,126.7870389309],["K0654",35.1479139846,126.7869424795],["K0655",35.1477972639,126.7873012788],["K0656",35.1477657177,126.7882272122],["K0657",35.1472515135,126.783526171],["K0658",35.1493225062,126.7835512483],["K0659",35.1507657031,126.7835801838],["K0660",35.1479187165,126.7802603266],["K0661",35.148053576,126.7802767233],["K0662",35.1479053094,126.7806885708],["K0663",35.1478501037,126.7821006193],["K0664",35.1477428467,126.7842939241],["K0665",35.1468926728,126.7856625695],["K0666",35.1464447112,126.7876764747],["K0667",35.1464620618,126.788694037],["K0668",35.1470164927,126.7881408882],["K0669",35.1478524696,126.7875674846],["K0670",35.1477365375,126.7852748349],["K0671",35.1489802361,126.7868547088],["K0672",35.1470929929,126.7872192951],["K0673",35.1480866993,126.7870244632],["K0674",35.1494131997,126.7858130337],["K0675",35.1571367562,126.7860483751],["K0676",35.1569916604,126.7862547811],["K0677",35.1571888014,126.7865113418],["K0678",35.155912108,126.7833294101],["K0679",35.1532734924,126.7833207295],["K0680",35.15685445,126.7843595111],["K0681",35.1505306924,126.7877681035],["K0682",35.1503903166,126.787390014],["K0683",35.1501119302,126.7877179488],["K0684",35.1506040347,126.7874276301],["K0685",35.1512258645,126.787423772],["K0686",35.1513898975,126.7872183306],["K0687",35.151386743,126.7874488494],["K0688",35.1548061237,126.7867876751],["K0689",35.1546862585,126.78674813],["K0690",35.1548510731,126.7866266012],["K0691",35.1508520575,126.7875139541],["K0692",35.1530743704,126.7869236715],["K0693",35.1568209359,126.7863893308],["K0694",35.1573358682,126.7878838452],["K0695",35.1572909202,126.7876099232],["K0696",35.1571734244,126.7877864293],["K0697",35.1576583892,126.7906423552],["K0698",35.15751566,126.7904021912],["K0699",35.1574991003,126.7905767683],["K0700",35.1566301026,126.799966312],["K0701",35.1565875199,126.8001524632],["K0702",35.1567026509,126.7998910799],["K0703",35.1568122617,126.7999518443],["K0704",35.1572238924,126.7867978024],["K0705",35.1573926446,126.7882802605],["K0706",35.1574391697,126.7967728062],["K0707",35.1574849062,126.7959298209],["K0708",35.1571237449,126.7977334621],["K0709",35.1514577187,126.7886081952],["K0710",35.1517763199,126.7914023923],["K0711",35.154970938,126.7882416799],["K0712",35.1552926798,126.791037806],["K0713",35.1516706454,126.7904841749],["K0714",35.1561262059,126.7879532902],["K0715",35.1530428263,126.7884799149],["K0716",35.1535995782,126.7912326378],["K0717",35.1566600682,126.7907166228],["K0718",35.1482262905,126.7960783561],["K0719",35.1572913145,126.7986362472],["K0720",35.1572242867,126.7984732443],["K0721",35.1490882801,126.7964959906],["K0722",35.1515976983,126.7973138985],["K0723",35.1544784656,126.7979649455],["K0724",35.1520030465,126.7980179937],["K0725",35.1551440321,126.7989082401],["K0726",35.1552520679,126.7991175397],["K0727",35.1553285602,126.7989506788],["K0728",35.1550959285,126.7993929084],["K0729",35.1551755754,126.7994305245],["K0730",35.1536993357,126.7983796865],["K0731",35.1533988798,126.7983439995],["K0732",35.1544831971,126.7985639086],["K0733",35.1619468507,126.7995795419],["K0734",35.1587722202,126.7991242913],["K0735",35.1580230966,126.7988735176],["K0736",35.1597192603,126.7993779585],["K0737",35.1602460023,126.8011854577],["K0738",35.1603264326,126.8012230737],["K0739",35.1596490804,126.8076313047],["K0740",35.1597074323,126.8076612046],["K0741",35.1617181805,126.8036285716],["K0742",35.1616787546,126.8037192359],["K0743",35.1600819872,126.8036430393],["K0744",35.1598982583,126.8054023129],["K0745",35.1611315203,126.8036507554],["K0746",35.1516182024,126.8011102256],["K0747",35.1515503813,126.8011420546],["K0748",35.1527451281,126.7987076212],["K0749",35.1527459167,126.798860979],["K0750",35.1528657847,126.7990789591],["K0751",35.1519620386,126.7989236724],["K0752",35.1540904788,126.799241962],["K0753",35.1529186212,126.8014429829],["K0754",35.1529123124,126.8003627272],["K0755",35.1536307278,126.7991040365],["K0756",35.155980714,126.7999889781],["K0757",35.1641053867,126.8020255494],["K0758",35.1641692549,126.8020216913],["K0759",35.1642354884,126.8015789794],["K0760",35.1641321956,126.8015722278],["K0761",35.1641266761,126.802548316],["K0762",35.1639815928,126.804135906],["K0763",35.1639910547,126.8038754872],["K0764",35.1638680491,126.8040191998],["K0765",35.1640659619,126.8023737389],["K0766",35.1637734293,126.8063677914],["K0767",35.1638002383,126.8060504663],["K0768",35.1636606738,126.8062269723],["K0769",35.1636283453,126.807892688],["K0770",35.1636472693,126.8076457724],["K0771",35.1635250517,126.8078097398],["K0772",35.1635999593,126.8082273743],["K0773",35.1635337252,126.8082148357],["K0774",35.1636937908,126.8071123962],["K0775",35.1641597929,126.8021470781],["K0776",35.1638972235,126.8051245328],["K0777",35.1640123442,126.8034993267],["K0778",35.1620513291,126.8058392377],["K0779",35.1620497521,126.8060938694],["K0780",35.1619133387,126.8073863181],["K0781",35.1618920488,126.8076399853],["K0782",35.1622721132,126.8036353232],["K0783",35.1622484578,126.8038899549],["K0784",35.1631402621,126.8038291905],["K0785",35.1628642848,126.8060750614],["K0786",35.1626127504,126.8075401581],["K0787",35.1636780208,126.8023906179],["K0788",35.1635108587,126.8039338403],["K0789",35.1622650166,126.8059602842],["K0790",35.1627381234,126.8076501127],["K0791",35.1629786184,126.8036821022],["K0792",35.1616491851,126.810290952],["K0793",35.1616223754,126.8105513708],["K0794",35.1634808956,126.80856833],["K0795",35.1635968053,126.8086454912],["K0796",35.1659189069,126.8106555383],["K0797",35.1660671407,126.8105532998],["K0798",35.1660426979,126.8108706249],["K0799",35.1633634087,126.8108098606],["K0800",35.1633318686,126.8105098967],["K0801",35.1632451332,126.8106555383],["K0802",35.1635266287,126.8106256384],["K0803",35.1634083534,126.8098511337],["K0804",35.1622397842,126.8105176128],["K0805",35.163294809,126.811563146],["K0806",35.1634600003,126.8102147554],["K0807",35.1648879651,126.8099215432],["K0808",35.1642398251,126.8097855467],["K0809",35.1655037721,126.8106256384],["K0810",35.1657915676,126.8124080602],["K0811",35.1657915676,126.8124910084],["K0812",35.1659934181,126.8124341021],["K0813",35.1659871103,126.8125469503],["K0814",35.1646766499,126.8119711354],["K0815",35.1640324508,126.8107953928],["K0816",35.1653232094,126.8124784698],["K0817",35.1657647593,126.8137921378],["K0818",35.1658554344,126.8138789441],["K0819",35.1659216666,126.8139358504],["K0820",35.1658183759,126.814663094],["K0821",35.1657419129,126.8142882758],["K0822",35.1656835458,126.8153189635],["K0823",35.1642674225,126.7996166757],["K0824",35.1650582784,126.7986791681],["K0825",35.16513555,126.799018677],["K0826",35.1652790543,126.7987736904],["K0827",35.1654099426,126.7985614974],["K0828",35.165573947,126.7960412223],["K0829",35.1654501553,126.7959698483],["K0830",35.1651718204,126.7955657169],["K0831",35.16744105,126.7932388269],["K0832",35.1673484055,126.7933261154],["K0833",35.1673767902,126.7930878805],["K0834",35.1671524718,126.7936280083],["K0835",35.1642374597,126.8008030279],["K0836",35.1647026701,126.7994594599],["K0837",35.1651639355,126.7969874105],["K0838",35.1662749041,126.7949571086],["K0839",35.1671091062,126.797742625],["K0840",35.1692375442,126.7969276107],["K0841",35.1689931256,126.7967887206],["K0842",35.1693258501,126.7966228242],["K0843",35.168064328,126.7938527401],["K0844",35.1691429306,126.7952532144],["K0845",35.1695040386,126.7962485928],["K0846",35.1750332048,126.8043664248],["K0847",35.1751601355,126.8040886448],["K0848",35.1751412141,126.8042709379],["K0849",35.1749232243,126.8042796186],["K0850",35.1749807769,126.8064160171],["K0851",35.1747379523,126.8064806395],["K0852",35.1748704021,126.8065664812],["K0853",35.174878286,126.8063321043],["K0854",35.1746669969,126.8086093219],["K0855",35.1747426826,126.8085938897],["K0856",35.1748625182,126.8090163468],["K0857",35.174739529,126.8090771112],["K0858",35.1747529317,126.8084241352],["K0859",35.1749701336,126.8051028313],["K0860",35.1749196766,126.8057104751],["K0861",35.174999304,126.8046215388],["K0862",35.1758886033,126.8083628886],["K0863",35.175743541,126.8084043627],["K0864",35.1759863626,126.8044469617],["K0865",35.1760620471,126.804464323],["K0866",35.1759682298,126.8049581542],["K0867",35.1759926696,126.8065143975],["K0868",35.1758483959,126.8066040973],["K0869",35.1759185618,126.8066629326],["K0870",35.1758980639,126.8064574912],["K0871",35.1759378772,126.8058305571],["K0872",35.1758369643,126.8071133607],["K0873",35.169111787,126.8089131438],["K0874",35.1690368844,126.8089218244],["K0875",35.1690936527,126.8092053915],["K0876",35.1690313653,126.8091716335],["K0877",35.1770069149,126.8065423684],["K0878",35.1770423916,126.8067034422],["K0879",35.1768689499,126.8066002392],["K0880",35.1692316309,126.8073515956],["K0881",35.1690317595,126.8086155912],["K0882",35.1711100821,126.8060557711],["K0883",35.1765973553,126.8065766086],["K0884",35.1739345761,126.8063210124],["K0885",35.1737698002,126.8063827413],["K0886",35.1744296901,126.8063759897],["K0887",35.1750958818,126.8065177733],["K0888",35.171108111,126.8091036353],["K0889",35.1711885306,126.8091045998],["K0890",35.1709133691,126.8093399412],["K0891",35.1709472716,126.8093679121],["K0892",35.1715401684,126.8086811782],["K0893",35.1731824385,126.808189276],["K0894",35.1728331731,126.808256792],["K0895",35.1742530893,126.8083773563],["K0896",35.1796778711,126.8149649868],["K0897",35.1797598589,126.8152717023],["K0898",35.1794287538,126.815046006],["K0899",35.1761333954,126.8148878257],["K0900",35.1759244747,126.8147460422],["K0901",35.1760561342,126.8145174523],["K0902",35.1762753036,126.8146524843],["K0903",35.1726155713,126.814597507],["K0904",35.1739921293,126.8146573069],["K0905",35.1749799885,126.8147036035],["K0906",35.1751053424,126.8144441493],["K0907",35.175323726,126.8146032941],["K0908",35.1731146354,126.8139956503],["K0909",35.1736917484,126.8138905183],["K0910",35.1741750379,126.8138066055],["K0911",35.1745487378,126.8137564508],["K0912",35.1736945078,126.8142584803],["K0913",35.1740303667,126.8142903093],["K0914",35.1744545246,126.8142411191],["K0915",35.172422804,126.8145902732],["K0916",35.1732301371,126.8144996088],["K0917",35.1746287598,126.8146790084],["K0918",35.1757183127,126.8145999183],["K0919",35.1774984626,126.814955824],["K0920",35.1738584954,126.8142565513],["K0921",35.1758326282,126.8173931508],["K0922",35.1762173578,126.817402796],["K0923",35.1752508001,126.812097969],["K0924",35.1750757778,126.8116967312],["K0925",35.1750379351,126.8119938015],["K0926",35.1753722117,126.8118047567],["K0927",35.1751262348,126.8136392624],["K0928",35.175638686,126.813755004],["K0929",35.1761314245,126.8143182802],["K0930",35.175106525,126.8140144583],["K0931",35.1759895161,126.8137800814],["K0932",35.1759863626,126.8142777706],["K0933",35.1759895161,126.8160601925],["K0934",35.1735060793,126.8176188471],["K0935",35.1735943805,126.8176747889],["K0936",35.172588371,126.8185428515],["K0937",35.1738356318,126.8176834695],["K0938",35.1739609875,126.8176690018],["K0939",35.1748778918,126.8176931147],["K0940",35.1751262348,126.8177085469],["K0941",35.1770175579,126.8178291111],["K0942",35.1771500041,126.8178426143],["K0943",35.1750119183,126.818577574],["K0944",35.1749441167,126.8212473487],["K0945",35.1749070623,126.8215502061],["K0946",35.175021379,126.8217103155],["K0947",35.1750655288,126.8213283679],["K0948",35.1750261093,126.8181753717],["K0949",35.1741904117,126.8184097486],["K0950",35.1750205906,126.8205355374],["K0951",35.1733799344,126.8226323908],["K0952",35.1733582532,126.8215429723],["K0953",35.1730156901,126.821540561],["K0954",35.1734516793,126.8225832006],["K0955",35.1741391658,126.8215530997],["K0956",35.1742219476,126.8238746849],["K0957",35.1745294221,126.8233384151],["K0958",35.174789592,126.8229159579],["K0959",35.1757782298,126.8190308956],["K0960",35.1761266942,126.8187434704],["K0961",35.1764546593,126.8183152262],["K0962",35.1687471293,126.8127914546],["K0963",35.168792071,126.8126207356],["K0964",35.1689757797,126.8127316547],["K0965",35.1688488394,126.8128830834],["K0966",35.1697831471,126.8128965866],["K0967",35.1699100859,126.812822319],["K0968",35.1698446454,126.8126795709],["K0969",35.1709074559,126.8129988251],["K0970",35.1710864293,126.8129370962],["K0971",35.1709965484,126.8127779514],["K0972",35.1716832672,126.812991109],["K0973",35.1668666523,126.812617842],["K0974",35.1664456087,126.8124943842],["K0975",35.1672293472,126.8125754034],["K0976",35.1692564669,126.8127605901],["K0977",35.1707789417,126.8129785703],["K0978",35.1688977232,126.8108682137],["K0979",35.1689718374,126.8111064486],["K0980",35.1688496278,126.811032181],["K0981",35.1690254519,126.8109463393],["K0982",35.1699857761,126.8111903613],["K0983",35.169870664,126.8111257389],["K0984",35.1699274316,126.8109743102],["K0985",35.1700456974,126.8110485778],["K0986",35.1705148168,126.8111802339],["K0987",35.1706263801,126.8112289419],["K0988",35.1706756572,126.8111117534],["K0989",35.1705633055,126.8110625632],["K0990",35.1710174418,126.8112236371],["K0991",35.1711262449,126.8112901885],["K0992",35.1711743389,126.8111426179],["K0993",35.171074997,126.8110799245],["K0994",35.1696928706,126.811015302],["K0995",35.170292084,126.8111580501],["K0996",35.17073203,126.8111937371],["K0997",35.1717830025,126.8112882595],["K0998",35.170371716,126.8102745553],["K0999",35.1703315058,126.8101289137],["K1000",35.1699428062,126.8118457486],["K1001",35.1700224385,126.8105282225],["K1002",35.171008769,126.8121968317],["K1003",35.1710474021,126.8114994881],["K1004",35.1708275062,126.812259233],["K1005",35.1715445236,126.8126299553],["K1006",35.171577894,126.8116755659],["K1007",35.1710818452,126.8118201035],["K1008",35.1710565917,126.8103901745],["K1009",35.1710340439,126.8107884803],["K1010",35.1705515205,126.8106626995],["K1011",35.1710714732,126.8099720085],["K1012",35.1714042773,126.8099742152],["K1013",35.1716766525,126.8100315889],["K1014",35.1707404716,126.8103261807],["K1015",35.1706827491,126.8106957997],["K1016",35.1712302092,126.8103471442],["K1017",35.171755118,126.8105192653],["K1018",35.1712058577,126.8107399333],["K1019",35.1687715704,126.8142855174],["K1020",35.1689799172,126.8096183879],["K1021",35.1689537611,126.8113131186],["K1022",35.168776982,126.8133322314],["K1023",35.1687255717,126.8151406062],["K1024",35.1668995819,126.8140356109],["K1025",35.1663728378,126.8140356109],["K1026",35.1681099981,126.8141525649],["K1027",35.1762748759,126.8117682465],["K1028",35.1764994368,126.8116082622],["K1029",35.1764263869,126.8114802747],["K1030",35.1750781092,126.8103813477],["K1031",35.1750032544,126.8099797319],["K1032",35.1749906283,126.8109572914],["K1033",35.1760972108,126.8103052173],["K1034",35.1763641592,126.8110896922],["K1035",35.1754956719,126.8113555972],["K1036",35.1758510043,126.8113666306],["K1037",35.1756354602,126.8103625909],["K1038",35.1789885039,126.8110676254],["K1039",35.1788595432,126.8113247037],["K1040",35.1791589481,126.8111889928],["K1041",35.1801626677,126.8114063509],["K1042",35.180151846,126.8115872987],["K1043",35.179755049,126.8113269104],["K1044",35.1797568526,126.8114151776],["K1045",35.1734709691,126.8121544156],["K1046",35.1730236338,126.8123486035],["K1047",35.1745766705,126.8119646411],["K1048",35.1757040015,126.8118852006],["K1049",35.1775654162,126.8115343384],["K1050",35.1782526137,126.8114240043],["K1051",35.1768204947,126.8116590158],["K1052",35.1794340027,126.8113511839],["K1053",35.1364514531,126.782129012],["K1054",35.1365648842,126.7820521527],["K1055",35.1364903354,126.7821619353],["K1056",35.1288097026,126.7868874258],["K1057",35.1290849276,126.788273253],["K1058",35.1289359902,126.7875510526],["K1059",35.1289988749,126.7883585474],["K1060",35.1289718879,126.7881960523],["K1061",35.131352052,126.7882421237],["K1062",35.1300614791,126.7884553985],["K1063",35.1306877722,126.7884781533],["K1064",35.1278133285,126.7900614469],["K1065",35.1300265304,126.790555485],["K1066",35.1284843391,126.7907137922],["K1067",35.1283453298,126.7907293569],["K1068",35.1297376718,126.7889585265],["K1069",35.130787912,126.7899728619],["K1070",35.1303735496,126.7902941324],["K1071",35.1286945807,126.7875113557],["K1072",35.1286488198,126.7875107606],["K1073",35.1283110865,126.7874967538],["K1074",35.1282972655,126.787461607],["K1075",35.1282636182,126.7883409107],["K1076",35.1306248361,126.7893055649],["K1077",35.1310492434,126.7906287978],["K1078",35.1309955073,126.790655459],["K1079",35.1303380486,126.7902934877],["K1080",35.129992706,126.7905693472],["K1081",35.1291508493,126.7915761469],["K1082",35.129222648,126.7914972069],["K1083",35.1284624438,126.7908445354],["K1084",35.1293471556,126.7910667869],["K1085",35.1293255367,126.7910272664],["K1086",35.129663721,126.7907717716],["K1087",35.1296111052,126.790818569],["K1088",35.130797031,126.7900857124],["K1089",35.1306960016,126.7899348973],["K1090",35.1307385366,126.7900785849],["K1091",35.1306535404,126.7884542141],["K1092",35.1277349494,126.7901049967],["K1093",35.1286157471,126.7923387164],["K1094",35.1285572538,126.7923006498],["K1095",35.1287809821,126.7920070035],["K1096",35.1294999387,126.7913688298],["K1097",35.1310177917,126.7875567711],["K1098",35.1309641919,126.7875444712],["K1099",35.1286551162,126.7881416591],["K1100",35.1308755947,126.7886159623],["K1101",35.1313923175,126.7883137813],["K1102",35.1310096277,126.7880839769],["K1103",35.1304438807,126.788466073],["K1104",35.1310562311,126.7893529122],["K1105",35.1301813893,126.7887681169],["K1106",35.1289830991,126.791320572],["K1107",35.1298593141,126.7912377759],["K1108",35.1295806898,126.7913601171],["K1109",35.1301726248,126.7910197916],["K1110",35.1315037475,126.7879628387],["K1111",35.1314458446,126.7879159349],["K1112",35.1309522035,126.7896181862],["K1113",35.1285735343,126.787470803],["K1114",35.130501131,126.7897073833],["K1115",35.1304475883,126.7896517669],["K1116",35.1314649928,126.790512543],["K1117",35.1313932657,126.790481824],["K1118",35.1307579677,126.7907671259],["K1119",35.1309569296,126.7904035511],["K1120",35.1322257303,126.790214564],["K1121",35.1321415263,126.7902274968],["K1122",35.1324763862,126.7894958474],["K1123",35.1330228811,126.7897608985],["K1124",35.1335426032,126.7900754922],["K1125",35.1334634989,126.7900893189],["K1126",35.1335370268,126.7901468052],["K1127",35.1336064894,126.7901253309],["K1128",35.1320219695,126.7897112995],["K1129",35.1321757275,126.7893159372],["K1130",35.1327951666,126.7902201416],["K1131",35.1324485275,126.7902597629],["K1132",35.1341373688,126.790029849],["K1133",35.1342076306,126.7899957207],["K1134",35.1339847824,126.7900212545],["K1135",35.1322637212,126.7923776547],["K1136",35.1342108962,126.7917039326],["K1137",35.1373018116,126.7918101989],["K1138",35.137282227,126.7918667653],["K1139",35.137043933,126.792210801],["K1140",35.1370335566,126.792261274],["K1141",35.1344061737,126.791262063],["K1142",35.1360723729,126.7916178911],["K1143",35.1361824734,126.7911820942],["K1144",35.1346536653,126.7902495728],["K1145",35.1355390804,126.7907989764],["K1146",35.1355717988,126.7907812469],["K1147",35.1322873564,126.7881134497],["K1148",35.132329471,126.7881338406],["K1149",35.1325642075,126.7874281832],["K1150",35.1324315181,126.7877555906],["K1151",35.1289701854,126.7879155588],["K1152",35.1288194623,126.7870425297],["K1153",35.1279987466,126.7897541658],["K1154",35.1282868189,126.7893439971],["K1155",35.1287960924,126.7885958606],["K1156",35.1312991039,126.7886576617],["K1157",35.1307762622,126.7889676243],["K1158",35.1311382397,126.7886820357],["K1159",35.1295096334,126.7883553452],["K1160",35.128338736,126.7892667028],["K1161",35.1308885926,126.7880286805],["K1162",35.1309024987,126.78780224],["K1163",35.1314043327,126.788143584],["K1164",35.1278192375,126.7901672105],["K1165",35.1285408273,126.7906004697],["K1166",35.1288062501,126.7901993097],["K1167",35.1290074615,126.7898851393],["K1168",35.129304939,126.7894960257],["K1169",35.1295698391,126.7891245832],["K1170",35.1298875927,126.7906611619],["K1171",35.1306022087,126.7901593667],["K1172",35.1340509577,126.7904183983],["K1173",35.1367162041,126.7932561632],["K1174",35.136632196,126.7931403621],["K1175",35.1350091713,126.7968308514],["K1176",35.1349243671,126.7967659725],["K1177",35.1348471114,126.7969265209],["K1178",35.1348981127,126.7970762666],["K1179",35.1347063768,126.797246721],["K1180",35.1347406815,126.797379076],["K1181",35.1357819278,126.7952254044],["K1182",35.136108725,126.7942221649],["K1183",35.1354994526,126.7958453186],["K1184",35.1291516355,126.7929255346],["K1185",35.129089711,126.7928862808],["K1186",35.1297657346,126.7942899402],["K1187",35.1287548643,126.7935532721],["K1188",35.1292272971,126.7939319388],["K1189",35.1291035129,126.7955905125],["K1190",35.1292786731,126.7957019555],["K1191",35.1281602821,126.7948227759],["K1192",35.1298316472,126.7959410287],["K1193",35.1305937703,126.7940996987],["K1194",35.1306933793,126.7941253447],["K1195",35.1302300423,126.796946526],["K1196",35.1294049127,126.7949985578],["K1197",35.1300320351,126.7954926942],["K1198",35.1306785772,126.7952538395],["K1199",35.132873061,126.7958458224],["K1200",35.1329251722,126.7958669799],["K1201",35.1327755628,126.7982353536],["K1202",35.1319098492,126.7975625553],["K1203",35.1330714271,126.8001898059],["K1204",35.133401901,126.8004904942],["K1205",35.1332249121,126.8002864206],["K1206",35.1330040471,126.8004476213],["K1207",35.1332942694,126.8006667717],["K1208",35.1339556667,126.7989857881],["K1209",35.133633879,126.7996339007],["K1210",35.134380949,126.7977691906],["K1211",35.1372863364,126.7923280916],["K1212",35.1372519832,126.7923589295],["K1213",35.1403010074,126.7936708519],["K1214",35.1403846945,126.7936979791],["K1215",35.1374620532,126.7919177225],["K1216",35.1374618029,126.7919749258],["K1217",35.1401257519,126.7955274478],["K1218",35.1400955644,126.7955266878],["K1219",35.1382988968,126.7940267575],["K1220",35.1386227099,126.7937005462],["K1221",35.1388035633,126.795009935],["K1222",35.1388596944,126.7951207398],["K1223",35.1400460085,126.7939590048],["K1224",35.1390223889,126.7948655887],["K1225",35.1379089231,126.7922357128],["K1226",35.1386699307,126.7930983053],["K1227",35.1397639556,126.794945284],["K1228",35.1377246858,126.7931721038],["K1229",35.1382295292,126.7940284985],["K1230",35.1382837728,126.7941193895],["K1231",35.137278006,126.7986619046],["K1232",35.1371481169,126.7987252228],["K1233",35.1370543303,126.7989250497],["K1234",35.1370116314,126.7988999626],["K1235",35.1381138619,126.7975736385],["K1236",35.1375528384,126.7982488786],["K1237",35.1388749403,126.7966642061],["K1238",35.1412015566,126.7992137547],["K1239",35.1412762061,126.7993366383],["K1240",35.1412208107,126.7993244861],["K1241",35.1419037405,126.800400238],["K1242",35.1419362873,126.8004597104],["K1243",35.1418744842,126.800474493],["K1244",35.1422335783,126.8018413013],["K1245",35.1421428105,126.8019702124],["K1246",35.1421383217,126.8018653791],["K1247",35.1414185646,126.8010634806],["K1248",35.1414755334,126.8011385636],["K1249",35.1414897963,126.8010694355],["K1250",35.1416789255,126.8007788734],["K1251",35.1417863256,126.8006164539],["K1252",35.1418166814,126.801528733],["K1253",35.1408583368,126.7995284084],["K1254",35.1405916898,126.7997990172],["K1255",35.1408275048,126.8002040816],["K1256",35.1435516047,126.8010029361],["K1257",35.1435585983,126.8010557506],["K1258",35.1437241974,126.8035067414],["K1259",35.1437039014,126.8035760332],["K1260",35.1425560323,126.8014390484],["K1261",35.140335041,126.7976785572],["K1262",35.1374365913,126.7926551434],["K1263",35.137979166,126.7936186102],["K1264",35.1389934251,126.7953701292],["K1265",35.1427820661,126.8018517371],["K1266",35.139963514,126.8010260153],["K1267",35.1402570579,126.8012395651],["K1268",35.1412598166,126.8021492913],["K1269",35.14136952,126.8020176055],["K1270",35.1412644777,126.8019421013],["K1271",35.1407146686,126.8034160316],["K1272",35.1396421117,126.8050988835],["K1273",35.139586796,126.8029037492],["K1274",35.1387026003,126.8033494153],["K1275",35.1387883277,126.8067248499],["K1276",35.1387626677,126.8068817417],["K1277",35.1388424541,126.8068425188],["K1278",35.1396074381,126.8056148404],["K1279",35.1395813774,126.8057643779],["K1280",35.1396647715,126.8057133881],["K1281",35.1406497019,126.8035416212],["K1282",35.1384666068,126.8071479364],["K1283",35.1381982956,126.8072861506],["K1284",35.1384615155,126.8074119131],["K1285",35.1405060228,126.8089484123],["K1286",35.1404785833,126.8090042477],["K1287",35.1395154485,126.8081852133],["K1288",35.1400001526,126.802961905],["K1289",35.1409351158,126.8027961345],["K1290",35.1392588387,126.8060825912],["K1291",35.1394482675,126.8064287166],["K1292",35.1397918671,126.8068013347],["K1293",35.1396268832,126.8067449222],["K1294",35.1390870253,126.8070999194],["K1295",35.1398058997,126.8060266814],["K1296",35.1392032965,126.8072494569],["K1297",35.1402753163,126.8042874534],["K1298",35.1357081351,126.802049985],["K1299",35.1357638173,126.8021899327],["K1300",35.1354164242,126.8024380304],["K1301",35.1356804386,126.8022113628],["K1302",35.1354596494,126.8022052379],["K1303",35.1356310939,126.8024703602],["K1304",35.1359415826,126.8017857621],["K1305",35.1360154968,126.8015902464],["K1306",35.1370249106,126.8006557529],["K1307",35.1365209371,126.801200559],["K1308",35.1364142838,126.8052384635],["K1309",35.1365405508,126.8054414267],["K1310",35.1361874865,126.8054868918],["K1311",35.136109202,126.8050438234],["K1312",35.1369427515,126.8062330608],["K1313",35.134819249,126.8045406469],["K1314",35.1352381722,126.8049926526],["K1315",35.1348152826,126.8042721206],["K1316",35.136421236,126.8005957904],["K1317",35.1357614522,126.8019106699],["K1318",35.136051741,126.8011802859],["K1319",35.1367705063,126.7997410019],["K1320",35.1328613605,126.7999893032],["K1321",35.1345362533,126.8015516322],["K1322",35.1359406624,126.8040938671],["K1323",35.1367823922,126.8059102344],["K1324",35.1380949421,126.806871508],["K1325",35.1443750971,126.8013028651],["K1326",35.1441814051,126.8053857319],["K1327",35.1441902292,126.8054501935],["K1328",35.1444018565,126.8053732318],["K1329",35.1459827188,126.8065216926],["K1330",35.1461289648,126.8066641646],["K1331",35.1468961273,126.8074210775],["K1332",35.1466531893,126.8073607027],["K1333",35.1455031855,126.8061046962],["K1334",35.1465039276,126.8070516236],["K1335",35.1470431622,126.8058911778],["K1336",35.1477290952,126.8063900954],["K1337",35.1464162789,126.8058178146],["K1338",35.1470559698,126.806548535],["K1339",35.1470778073,126.8066850269],["K1340",35.1469862932,126.8065805626],["K1341",35.1471735899,126.8074232275],["K1342",35.1471137009,126.8074237379],["K1343",35.1471074543,126.8069792236],["K1344",35.1448395273,126.8080297687],["K1345",35.1463508499,126.8075516766],["K1346",35.1463818466,126.8075722289],["K1347",35.1452948968,126.8101986957],["K1348",35.1452067397,126.8091839604],["K1349",35.1312379972,126.7886368435],["K1350",35.1311697679,126.7957505172],["K1351",35.1321010421,126.7970953041],["K1352",35.1314261367,126.7988102187],["K1353",35.1313955863,126.7989297553],["K1354",35.1314424302,126.7989222843],["K1355",35.1326068993,126.7964194864],["K1356",35.1338349964,126.7992354453],["K1357",35.1335600509,126.7997783407],["K1358",35.1356556596,126.7955192652],["K1359",35.1355385559,126.7952752113],["K1360",35.1349896938,126.7947609548],["K1361",35.1353919215,126.7950747384],["K1362",35.1334438989,126.793632828],["K1363",35.1365130572,126.79366458],["K1364",35.1358114582,126.794808894],["K1365",35.1298043423,126.7883557846],["K1366",35.1294092155,126.7883109584],["K1367",35.1289702967,126.7901338918],["K1368",35.1289774254,126.7900012808],["K1369",35.1292605333,126.7897061748],["K1370",35.1295100341,126.7893488102],["K1371",35.1287406527,126.7904420721],["K1372",35.1297364682,126.7887007598],["K1373",35.1347245279,126.7907919969],["K1374",35.1354189827,126.7912358699],["K1375",35.1384349008,126.7926854848],["K1376",35.1383434867,126.7924952535],["K1377",35.1383280505,126.792697742],["K1378",35.1389491033,126.7935675109],["K1379",35.1388697178,126.7934145414],["K1380",35.1393789059,126.7943039218],["K1381",35.1395553168,126.7943245139],["K1382",35.13937209,126.7961091582],["K1383",35.1393849199,126.7963042924],["K1384",35.1395621326,126.7962670306],["K1385",35.1395324636,126.7960326734],["K1386",35.1430990896,126.8012316756],["K1387",35.1388540813,126.7950079738],["K1388",35.1392526115,126.7940558367],["K1389",35.1418105357,126.8023867915],["K1390",35.1419227938,126.8024485677],["K1391",35.1420334481,126.8005746912],["K1392",35.1417936969,126.8002324709],["K1393",35.1401178243,126.8012875683],["K1394",35.1398884917,126.8017935444],["K1395",35.1396631678,126.8025348582],["K1396",35.1397497692,126.8027525455],["K1397",35.1391980844,126.8038743219],["K1398",35.1389559192,126.8047941001],["K1399",35.138988796,126.8049911955],["K1400",35.139886888,126.805284387],["K1401",35.1400103749,126.8051039615],["K1402",35.1398010886,126.8051745628],["K1403",35.1383881914,126.8033134337],["K1404",35.1394226077,126.8033928602],["K1405",35.14474804,126.8053500855],["K1406",35.1445812622,126.8053657747],["K1407",35.1445985013,126.8052559504],["K1408",35.1445672304,126.8040929899],["K1409",35.145317728,126.8096582364],["K1410",35.146054588,126.8085771538],["K1411",35.1666994967,126.8022266505],["K1412",35.1667901707,126.8022440118],["K1413",35.1666009378,126.8034072157],["K1414",35.1666750541,126.8034506188],["K1415",35.1667073814,126.8032321564],["K1416",35.1666884581,126.8030802454],["K1417",35.16668491,126.8033763512],["K1418",35.1666340536,126.8027002269],["K1419",35.1668209211,126.8017916547],["K1420",35.1670006919,126.8018495256],["K1421",35.1697248024,126.7985822344],["K1422",35.1696372854,126.7989188498],["K1423",35.169947931,126.7987876759],["K1424",35.1671370967,126.8019975785],["K1425",35.1756852006,126.7967091482],["K1426",35.1753477718,126.7971026699],["K1427",35.175696238,126.7970621604],["K1428",35.1754061124,126.7967303675],["K1429",35.1679807514,126.7998004156],["K1430",35.1671268467,126.8011825641],["K1431",35.1693991755,126.7990548463],["K1432",35.1693069274,126.7973177566],["K1433",35.1710816987,126.7981877482],["K1434",35.1702246727,126.7984385218],["K1435",35.1724693205,126.7980151002],["K1436",35.1748014178,126.7973167921],["K1437",35.1666103994,126.8043153056],["K1438",35.1665985724,126.8044059699],["K1439",35.1664779361,126.8043027669],["K1440",35.1664692629,126.8043664248],["K1441",35.1690546245,126.8048891914],["K1442",35.1690404325,126.8049528493],["K1443",35.1675975598,126.8045535405],["K1444",35.1671844047,126.8045361793],["K1445",35.1680706356,126.804725224],["K1446",35.1695316341,126.8037751778],["K1447",35.1697366291,126.8030720471],["K1448",35.1697728973,126.8026081158],["K1449",35.1695292687,126.8029042216],["K1450",35.1699912952,126.8027653316],["K1451",35.1680044052,126.8035244041],["K1452",35.1692462171,126.8037693907],["K1453",35.1671370967,126.8032128661],["K1454",35.1696601502,126.8034385624],["K1455",35.1703476687,126.8003955207],["K1456",35.1705763146,126.8000241828],["K1457",35.1702869592,126.8001090601],["K1458",35.1717084967,126.8001148471],["K1459",35.1715027183,126.8002035824],["K1460",35.171552389,126.8000106796],["K1461",35.1701032534,126.8013426735],["K1462",35.170032294,126.8018712271],["K1463",35.1703114007,126.8008334101],["K1464",35.1720585554,126.8001428181],["K1465",35.1710982557,126.8001640374],["K1466",35.1710209897,126.7986102053],["K1467",35.1715192752,126.7983758284],["K1468",35.170095369,126.7990741366],["K1469",35.1702246727,126.7998438187],["K1470",35.1702633061,126.7989931174],["K1471",35.1747359813,126.7940287639],["K1472",35.1747288857,126.7942872536],["K1473",35.1747714589,126.7944020308],["K1474",35.1817137462,126.7897034009],["K1475",35.1815781541,126.7898273409],["K1476",35.1787377645,126.7917177883],["K1477",35.1770396323,126.7925154414],["K1478",35.1806542303,126.7902661948],["K1479",35.1684936419,126.8024933387],["K1480",35.1689454244,126.8027508639],["K1481",35.1677919155,126.8021480426],["K1482",35.1711483208,126.8032099726],["K1483",35.1704765778,126.8029003636],["K1484",35.171641875,126.8034626752],["K1485",35.1734765141,126.803721165],["K1486",35.1769016674,126.8057963168],["K1487",35.1768622488,126.8059053069],["K1488",35.1768244069,126.805704688],["K1489",35.1764116928,126.8051418941],["K1490",35.1789785838,126.8080433696],["K1491",35.1793131592,126.8081007433],["K1492",35.1790967224,126.8101926765],["K1493",35.1790831951,126.8085784897],["K1494",35.1796378132,126.8092206337],["K1495",35.1790651587,126.8091334698],["K1496",35.1822151592,126.8090915429],["K1497",35.1823837931,126.8091643634],["K1498",35.1808516469,126.8120253248],["K1499",35.1810311052,126.8118344469],["K1500",35.1811970361,126.8120462883],["K1501",35.1820483286,126.8096023895],["K1502",35.1821520342,126.8097844406],["K1503",35.1805874187,126.8090606494],["K1504",35.1805567573,126.8095240523],["K1505",35.1805107653,126.8099234615],["K1506",35.1804963364,126.8101562663],["K1507",35.1804783003,126.8105600889],["K1508",35.1804305046,126.8110444553],["K1509",35.1809472378,126.8096807266],["K1510",35.1808588613,126.8100602757],["K1511",35.1811239905,126.8105689156],["K1512",35.1808209857,126.8108237872],["K1513",35.1808543523,126.8113920075],["K1514",35.1811023473,126.8110488686],["K1515",35.1812971356,126.8107134532],["K1516",35.1815171737,126.8103570742],["K1517",35.1817823007,126.809899188],["K1518",35.1772777294,126.8046174979],["K1519",35.177010784,126.8046208079],["K1520",35.177102772,126.8046174979],["K1521",35.1770712075,126.8042225021],["K1522",35.176946753,126.8041794718],["K1523",35.1773688153,126.8079793759],["K1524",35.177571729,126.807940759],["K1525",35.1800517451,126.7994593819],["K1526",35.1800499415,126.799624883],["K1527",35.1803781998,126.7994262817],["K1528",35.1803781998,126.7996292963],["K1529",35.1761720647,126.7994671053],["K1530",35.1764669702,126.7995653026],["K1531",35.1764236814,126.7998764446],["K1532",35.1761414017,126.7997550771],["K1533",35.173723496,126.8003310208],["K1534",35.1732734564,126.8001820698],["K1535",35.1746001191,126.7999867786],["K1536",35.1779135248,126.7993148444],["K1537",35.1781101244,126.7994847588],["K1538",35.1779892788,126.7996966001],["K1539",35.1778585129,126.7996171596],["K1540",35.1766067568,126.799475932],["K1541",35.1766716899,126.799466002],["K1542",35.1754181118,126.799790384],["K1543",35.1741969819,126.8002361335],["K1544",35.1774003797,126.7996226763],["K1545",35.1789650565,126.7996138496],["K1546",35.1774102999,126.8072522746],["K1547",35.1775076985,126.8075678299],["K1548",35.1773525821,126.8073758487],["K1549",35.177610508,126.8072964082],["K1550",35.1774030852,126.8077278143],["K1551",35.177296668,126.805993915],["K1552",35.1772461649,126.805478655],["K1553",35.177200171,126.8051840632],["K1554",35.1772281281,126.8071833158],["K1555",35.1786214614,126.8077460194],["K1556",35.1786999203,126.8077548461],["K1557",35.1786800801,126.8048497511],["K1558",35.1789028307,126.8048343043],["K1559",35.1787459134,126.8052668137],["K1560",35.1787089385,126.8074734943],["K1561",35.1788009246,126.8073079933],["K1562",35.1792383082,126.8053594943],["K1563",35.1791508317,126.8060899056],["K1564",35.1793997337,126.8073609536],["K1565",35.1787098404,126.8059299212],["K1566",35.1790353986,126.8066774343],["K1567",35.1796360095,126.8066189573],["K1568",35.1796729839,126.8059194395],["K1569",35.1758564154,126.7983008746],["K1570",35.17607737,126.7985447128],["K1571",35.1761432054,126.7982898412],["K1572",35.1758419857,126.7985391961],["K1573",35.1765950328,126.8015259384],["K1574",35.1767799116,126.8018337703],["K1575",35.1768078688,126.8015491085],["K1576",35.1765490385,126.8017234363],["K1577",35.1767645802,126.8026447254],["K1578",35.1769503604,126.8029801409],["K1579",35.1767086657,126.8029271806],["K1580",35.1769972563,126.8028058131],["K1581",35.1760358847,126.803259286],["K1582",35.176317263,126.8029040104],["K1583",35.1758825693,126.7977988548],["K1584",35.1762000221,126.7989617755],["K1585",35.1764832035,126.800947788],["K1586",35.176870998,126.8023986805],["K1587",35.176305088,126.8016903361],["K1588",35.1764475804,126.8016605459],["K1589",35.176865587,126.8033922385],["K1590",35.176163948,126.8027964347],["K1591",35.1803691817,126.8018685255],["K1592",35.1803890215,126.8020340266],["K1593",35.1800896212,126.8019093491],["K1594",35.1800914248,126.8020141664],["K1595",35.1796716312,126.8021509806],["K1596",35.1797726344,126.8021421539],["K1597",35.1797176237,126.8024521925],["K1598",35.178921769,126.8037822693],["K1599",35.1787819863,126.8037673742],["K1600",35.1788874997,126.8039554937],["K1601",35.1774941709,126.8035632562],["K1602",35.1773895576,126.8036438001],["K1603",35.1773543858,126.8034727823],["K1604",35.1785750174,126.8035312594],["K1605",35.1784144921,126.8034176153],["K1606",35.1771248672,126.801422776],["K1607",35.1770806769,126.8015364201],["K1608",35.1771347874,126.8016324107],["K1609",35.1772051311,126.80152318],["K1610",35.1772583398,126.8026971341],["K1611",35.1772709656,126.8029144921],["K1612",35.1773836956,126.802790918],["K1613",35.1772240698,126.8027688512],["K1614",35.1780681892,126.8027953314],["K1615",35.1786467126,126.8036393867],["K1616",35.1794588027,126.8026767223],["K1617",35.1800034983,126.8020158215],["K1618",35.1778228905,126.8035958048],["K1619",35.1789307872,126.8045904661],["K1620",35.1787350915,126.8045683993],["K1621",35.1787855936,126.8041888502],["K1622",35.1772222661,126.802320895],["K1623",35.1773507785,126.8030342046],["K1624",35.1786097377,126.8040889979],["K1625",35.1791445189,126.8041441649],["K1626",35.1797275437,126.8041546467],["K1627",35.1797108601,126.8031831555],["K1628",35.1802478886,126.806624474],["K1629",35.1808259456,126.8049992537],["K1630",35.1809909751,126.804997047],["K1631",35.1808881699,126.8046925251],["K1632",35.1807321582,126.8053159123],["K1633",35.1821073957,126.799735217],["K1634",35.1822345476,126.8001809665],["K1635",35.1823193155,126.7998808579],["K1636",35.1820325473,126.8000629091],["K1637",35.1827251178,126.7999183715],["K1638",35.1829199022,126.7999437483],["K1639",35.1834447355,126.7998267943],["K1640",35.1835078596,126.8001820698],["K1641",35.1833653795,126.8001125594],["K1642",35.1835980367,126.7999106481],["K1643",35.1812182284,126.799731907],["K1644",35.1813029973,126.8000088454],["K1645",35.1813846098,126.7996954968],["K1646",35.1814756911,126.7999845719],["K1647",35.1813719847,126.8005803757],["K1648",35.1813755919,126.8015535219],["K1649",35.18130435,126.8018117035],["K1650",35.1813746901,126.8021360855],["K1651",35.1814783965,126.8018801106],["K1652",35.1811997415,126.8020323716],["K1653",35.1808128695,126.8002449602],["K1654",35.1808119677,126.8005511372],["K1655",35.1807551541,126.8013753324],["K1656",35.1808110659,126.8010332969],["K1657",35.1813764937,126.8009483397],["K1658",35.1813724356,126.8003232974],["K1659",35.1812881176,126.804782999],["K1660",35.1814423247,126.8047796889],["K1661",35.1813106626,126.8040912046],["K1662",35.1813611631,126.8042754624],["K1663",35.1814224852,126.8041518883],["K1664",35.1812736889,126.8042180887],["K1665",35.1812610637,126.802468191],["K1666",35.1814224852,126.8023865438],["K1667",35.1813674757,126.8025277714],["K1668",35.1812944302,126.8022993799],["K1669",35.1813737883,126.8032912829],["K1670",35.181308859,126.8037806143],["K1671",35.1813196805,126.802888012],["K1672",35.1813052518,126.8022397995],["K1673",35.1813124661,126.8043504896],["K1674",35.1820672661,126.8033475532],["K1675",35.1822864003,126.8032648027],["K1676",35.1822187664,126.8034258904],["K1677",35.1821376056,126.8031688121],["K1678",35.1806613666,126.8032923862],["K1679",35.1817836533,126.8034314071],["K1680",35.1817493853,126.8030750282],["K1681",35.1817588541,126.8040484501],["K1682",35.1821290386,126.804712661],["K1683",35.1822259807,126.8047137644],["K1684",35.1821421145,126.8050122179],["K1685",35.1822115521,126.8050166313],["K1686",35.18211461,126.8017948776],["K1687",35.1822426637,126.8021457398],["K1688",35.1820442706,126.8020276824],["K1689",35.182300378,126.801926175],["K1690",35.1824437617,126.8020023055],["K1691",35.1826123951,126.801922865],["K1692",35.1825294311,126.8020530592],["K1693",35.1839794849,126.8020872627],["K1694",35.1841544275,126.8021126396],["K1695",35.1840750722,126.802279244],["K1696",35.1845304625,126.802234007],["K1697",35.1846305579,126.8023024141],["K1698",35.1846828599,126.8021490498],["K1699",35.1845800594,126.8020894694],["K1700",35.1856982341,126.802023269],["K1701",35.1856910201,126.8023785446],["K1702",35.1855070634,126.8022295936],["K1703",35.1846242456,126.8043976574],["K1704",35.184581412,126.8041940911],["K1705",35.1845146817,126.8043314569],["K1706",35.1840728177,126.803399686],["K1707",35.1836336567,126.8047744481],["K1708",35.1837756854,126.8047705864],["K1709",35.1824820875,126.8031624679],["K1710",35.1839641549,126.8044197242],["K1711",35.1836719819,126.8037488933],["K1712",35.1837729801,126.8032700436],["K1713",35.1824915563,126.8037444799],["K1714",35.1832815145,126.803332934],["K1715",35.1832806127,126.8038857075],["K1716",35.1830939452,126.8043568338],["K1717",35.1840714651,126.8041052722],["K1718",35.1840687598,126.8026808598],["K1719",35.1824852438,126.8022450404],["K1720",35.1825352927,126.8039579762],["K1721",35.1825803819,126.8038266787],["K1722",35.1837184231,126.8033974794],["K1723",35.1836084071,126.8033367956],["K1724",35.183785154,126.8043562821],["K1725",35.1836084071,126.8044279992],["K1726",35.1836706293,126.8042834616],["K1727",35.1837139142,126.8044732362],["K1728",35.1837076018,126.8040473468],["K1729",35.1837021912,126.8034978833],["K1730",35.1838987768,126.8033235556],["K1731",35.1825199624,126.8035155368],["K1732",35.1833721428,126.8019543102],["K1733",35.1834424811,126.8018097726],["K1734",35.1835822557,126.8018781797],["K1735",35.1808435307,126.8019896171],["K1736",35.1817804971,126.8019940305],["K1737",35.1832531086,126.8019024532],["K1738",35.1838798397,126.8019940305],["K1739",35.1844285635,126.8022064235],["K1740",35.185159889,126.8021589799],["K1741",35.1846824091,126.804654184],["K1742",35.1845336187,126.8046872842],["K1743",35.1846370957,126.8040200391],["K1744",35.1846235693,126.8026176936],["K1745",35.184632136,126.8028168465],["K1746",35.1845149072,126.8001125594],["K1747",35.1846727151,126.7999691252],["K1748",35.1846204131,126.8001908966],["K1749",35.1845717181,126.8007447734],["K1750",35.1846271763,126.8009257212],["K1751",35.1845180633,126.8008622791],["K1752",35.1846298816,126.8015579352],["K1753",35.1834535278,126.8007392567],["K1754",35.1835112412,126.8009312379],["K1755",35.1835576825,126.8007966304],["K1756",35.1833998723,126.8008677959],["K1757",35.1834418048,126.801370919],["K1758",35.1835053797,126.8015877254],["K1759",35.1835585842,126.8014371195],["K1760",35.1841361668,126.8014327061],["K1761",35.1836410963,126.8014558762],["K1762",35.1844571945,126.801477943],["K1763",35.184583441,126.8016864744],["K1764",35.1846122973,126.8010035067],["K1765",35.1846141008,126.8004672833],["K1766",35.1821261078,126.8007398084],["K1767",35.1822090722,126.8010774305],["K1768",35.1822821168,126.8008060088],["K1769",35.1826338124,126.8008038021],["K1770",35.1840874714,126.8008700025],["K1771",35.184481542,126.79467585],["K1772",35.1846168061,126.7950763625],["K1773",35.1844319451,126.7950200922],["K1774",35.1846961609,126.7947983208],["K1775",35.1802566813,126.7935096193],["K1776",35.1830675682,126.7915169867],["K1777",35.1845825392,126.7944220817],["K1778",35.1844986755,126.7942069304],["K1779",35.1844409628,126.7943636047],["K1780",35.1846240201,126.7942896809],["K1781",35.1837565228,126.7927781046],["K1782",35.1834959111,126.7925375765],["K1783",35.1822830186,126.7948159742],["K1784",35.1823326168,126.7948248009],["K1785",35.182336224,126.7951083594],["K1786",35.1822965454,126.7951116694],["K1787",35.1832939139,126.7921282372],["K1788",35.1829963278,126.7922694648],["K1789",35.1842993861,126.7934312821],["K1790",35.1822974472,126.7942212738],["K1791",35.1839882772,126.7943602947],["K1792",35.1829070518,126.7936861537],["K1793",35.1828953287,126.7943448479],["K1794",35.1822947418,126.7946736433],["K1795",35.183460742,126.7994135933],["K1796",35.1835040271,126.7996309514],["K1797",35.1835527227,126.7994974472],["K1798",35.184230852,126.7986898021],["K1799",35.1843295951,126.7986666319],["K1800",35.1841938797,126.7985706413],["K1801",35.1835874409,126.7995669576],["K1802",35.1839923351,126.798997634],["K1803",35.1841979376,126.7987096622],["K1804",35.1839752016,126.7981105484],["K1805",35.1838976496,126.7983179764],["K1806",35.184000451,126.7982716361],["K1807",35.1842777437,126.7999933986],["K1808",35.184413459,126.7999933986],["K1809",35.1847205084,126.7990158391],["K1810",35.1850960899,126.7991587217],["K1811",35.1850045618,126.8000154655],["K1812",35.1851740916,126.8000231888],["K1813",35.1852047512,126.7973233151],["K1814",35.1851091653,126.7974529576],["K1815",35.1850618232,126.7984216904],["K1816",35.1851060092,126.7985789164],["K1817",35.1849937407,126.7985099576],["K1818",35.1843363583,126.7996673616],["K1819",35.1851001478,126.7994433835],["K1820",35.1851082636,126.7978358167],["K1821",35.1849387336,126.7990737645],["K1822",35.1841064085,126.798462514],["K1823",35.1848242105,126.7972488396],["K1824",35.1847349365,126.7973955839],["K1825",35.1850262039,126.7973260734],["K1826",35.1843174213,126.7976791423],["K1827",35.1843120107,126.7978755369],["K1828",35.1836816759,126.7985529879],["K1829",35.1836528193,126.7987670359],["K1830",35.183595106,126.7986500818],["K1831",35.1856141461,126.7972300828],["K1832",35.1857313733,126.7975103313],["K1833",35.1855672552,126.7973911705],["K1834",35.1834571349,126.8017383314],["K1835",35.1834517243,126.8006107176],["K1836",35.1834436083,126.8011524577],["K1837",35.1834895987,126.7997501121],["K1838",35.183547763,126.7989496387],["K1839",35.1837475051,126.7984564456],["K1840",35.1841551038,126.7979654591],["K1841",35.1845960656,126.7973641387],["K1842",35.1854824907,126.7973828955],["K1843",35.1824778041,126.7974182024],["K1844",35.1825887233,126.797361932],["K1845",35.1826347142,126.7974943328],["K1846",35.1825219914,126.79756936],["K1847",35.1827519457,126.7977227243],["K1848",35.1828781949,126.7976686606],["K1849",35.1829350069,126.797831955],["K1850",35.1828340077,126.7978959487],["K1851",35.1822812151,126.7965013265],["K1852",35.1823578668,126.7967926084],["K1853",35.1823930364,126.7965785604],["K1854",35.1822361258,126.7966955144],["K1855",35.1822906838,126.7954553599],["K1856",35.1823488489,126.7956986465],["K1857",35.1823961926,126.7955436272],["K1858",35.1822464963,126.7956230677],["K1859",35.1806715119,126.7980404863],["K1860",35.1807175039,126.7982810145],["K1861",35.1807860409,126.7981066867],["K1862",35.1806128947,126.7981905406],["K1863",35.1813803263,126.7994814487],["K1864",35.1812847359,126.7993810448],["K1865",35.1813785227,126.7980846199],["K1866",35.1811936544,126.7981993673],["K1867",35.1813045754,126.7982688777],["K1868",35.1810998674,126.7991989936],["K1869",35.1806778245,126.7986572535],["K1870",35.1811269213,126.7987168339],["K1871",35.1812080832,126.7993214644],["K1872",35.1819980539,126.7982335708],["K1873",35.1821053667,126.798149717],["K1874",35.18216759,126.7982876345],["K1875",35.1820665898,126.7983461116],["K1876",35.1823840185,126.7986892504],["K1877",35.1824561613,126.7984023819],["K1878",35.1823217954,126.7985094059],["K1879",35.1806913516,126.7954884601],["K1880",35.1807265219,126.796684481],["K1881",35.1806706101,126.7975417765],["K1882",35.1806724137,126.7958448391],["K1883",35.1809411507,126.7954553599],["K1884",35.181306379,126.7954542566],["K1885",35.1818204013,126.7955359038],["K1886",35.1801250172,126.7980305562],["K1887",35.1801376425,126.7982854278],["K1888",35.180398265,126.7981243402],["K1889",35.1805037763,126.7981739905],["K1890",35.1810619918,126.7981728871],["K1891",35.1817040702,126.7981199268],["K1892",35.1822812151,126.7960831606],["K1893",35.1824128756,126.7972129811],["K1894",35.1827735885,126.7955667973],["K1895",35.1828998376,126.7954112263],["K1896",35.1828890162,126.7955943808],["K1897",35.1833462168,126.7953361992],["K1898",35.1833949126,126.7954972869],["K1899",35.1832812891,126.795413433],["K1900",35.1834652509,126.7953361992],["K1901",35.1828398693,126.7965228417],["K1902",35.1829782923,126.7969448694],["K1903",35.182889918,126.7961195708],["K1904",35.1833976179,126.7961637044],["K1905",35.1822541615,126.7979786992],["K1906",35.1829214803,126.7969840379],["K1907",35.1844770332,126.7955000452],["K1908",35.1845636022,126.7956611329],["K1909",35.1844481768,126.7957372634],["K1910",35.18436792,126.7955861058],["K1911",35.1839008058,126.7973977906],["K1912",35.1840171337,126.7973271768],["K1913",35.1840532043,126.7974893678],["K1914",35.1839431888,126.7975390181],["K1915",35.1841695321,126.7977133459],["K1916",35.1832371021,126.7982639127],["K1917",35.1833462168,126.7982021256],["K1918",35.1833795824,126.7983223897],["K1919",35.1832794855,126.7983941069],["K1920",35.184826014,126.7966254523],["K1921",35.1838981005,126.7953356475],["K1922",35.1848296211,126.7962756935],["K1923",35.1847078837,126.7967490264],["K1924",35.1829458283,126.7990439743],["K1925",35.1838908863,126.7975842551],["K1926",35.1848305228,126.7971506423],["K1927",35.1835175536,126.7985651246],["K1928",35.1832073435,126.7954172947],["K1929",35.1836546228,126.7966640692],["K1930",35.1834634473,126.797049135],["K1931",35.1845762269,126.7954272247],["K1932",35.1839377782,126.7962767968],["K1933",35.1832199684,126.7973646903],["K1934",35.1826202857,126.7982594993],["K1935",35.1821405364,126.7993495996],["K1936",35.1821432417,126.8016633042],["K1937",35.1822207954,126.8028582218],["K1938",35.1821279114,126.8045231623],["K1939",35.1836586808,126.7970452733],["K1940",35.1826955845,126.7955767274],["K1941",35.1764611582,126.7977059584],["K1942",35.17798365,126.7981849287],["K1943",35.1778314021,126.7980769256],["K1944",35.1771891432,126.7979141383],["K1945",35.1771072612,126.7980800561],["K1946",35.1765686292,126.7982600613],["K1947",35.1779132834,126.7969014134],["K1948",35.1779043276,126.7972676848],["K1949",35.177912004,126.7976355215],["K1950",35.1772083342,126.7976543047],["K1951",35.1772249665,126.7972598585],["K1952",35.1772633486,126.796851325],["K1953",35.1774974793,126.7983852823],["K1954",35.1771865843,126.7983273676],["K1955",35.1776324559,126.7991859141],["K1956",35.1778960116,126.7997822791],["K1957",35.1779062467,126.8001892473],["K1958",35.1779177613,126.8005915198],["K1959",35.1774405459,126.8013866732],["K1960",35.1772230474,126.8002737715],["K1961",35.1775326628,126.7966564498],["K1962",35.1778064539,126.7969757634],["K1963",35.1778397182,126.7973498611],["K1964",35.177842277,126.797706741],["K1965",35.1775313834,126.7987820763],["K1966",35.1771910623,126.7989652121],["K1967",35.1777539987,126.7998793254],["K1968",35.1778550709,126.8002440315],["K1969",35.1778192479,126.8006650872],["K1970",35.1770260188,126.8011237091],["K1971",35.1769076735,126.7980276198]];
-var D=DALL.slice();
 var W=window.innerWidth,H=window.innerHeight;
 var Z=13,CX=0,CY=0,shOn=false,TC={};
-var curFilter='all',curPop=null,selMode=false;
-var selSet=new Set(); // 현재 선택된 포인트명
+var curFlt='all',curPop=null,selMode=false;
+var selSet=new Set();
 var addrCache={};
 var R=Math.PI/180;
-
-// 상태 관리 (Firebase + localStorage fallback)
 var LS_KEY='fm_'+PROJ_ID;
 var localState=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
 function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(localState));}catch(e){}}
 function getState(nm){return fbState[nm]||localState[nm]||{};}
 function isDone(nm){return !!(getState(nm).done);}
 function getWorker(nm){return getState(nm).worker||0;}
-function saveDone(){}
-function saveWorker(){}
-var doneSet={has:isDone,add:function(nm){setFbStatus(nm,{done:true});},delete:function(nm){setFbStatus(nm,{done:false});}};
-var workerMap={};
+
 function setFbStatus(nm,data){
-  // 로컬 즉시 반영
   localState[nm]=Object.assign(localState[nm]||{},data);
   saveLocal();
-  drawMarkers();updateStats();buildList(getFilteredList());
-  // Firebase 동기화
   if(db){
-    var el=document.getElementById('syncing');
-    if(el)el.style.display='block';
+    var el=document.getElementById('syncing');el.style.display='block';
     db.ref('projects/'+PROJ_ID+'/status/'+nm).update(data).then(function(){
-      if(el)setTimeout(function(){el.style.display='none';},600);
+      setTimeout(function(){el.style.display='none';},600);
     });
   }
 }
+function setFbStatusBatch(updates){
+  Object.keys(updates).forEach(function(nm){
+    localState[nm]=Object.assign(localState[nm]||{},updates[nm]);
+  });
+  saveLocal();
+  if(db){
+    var el=document.getElementById('syncing');el.style.display='block';
+    db.ref('projects/'+PROJ_ID+'/status').update(updates).then(function(){
+      setTimeout(function(){el.style.display='none';},600);
+    });
+  }
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+// 담당자 이름
+function updateWorkerNames(){
+  ['1','2','3'].forEach(function(i){
+    var n=workerNames[i];
+    document.getElementById('spN'+i).textContent=n;
+    document.getElementById('lgn'+i).textContent=n;
+    document.getElementById('rn'+i).textContent=n;
+    var ft=document.getElementById('ft-w'+i);
+    if(ft)ft.textContent=['🔵','🟠','🟣'][i-1]+n.slice(0,3);
+  });
+}
+function openSetting(){
+  ['1','2','3'].forEach(function(i){document.getElementById('wn'+i).value=workerNames[i]||'담당자'+i;});
+  document.getElementById('settingPop').style.display='flex';
+}
+function saveWorkerNames(){
+  ['1','2','3'].forEach(function(i){workerNames[i]=document.getElementById('wn'+i).value||'담당자'+i;});
+  localStorage.setItem('fm_wnames',JSON.stringify(workerNames));
+  updateWorkerNames();
+  document.getElementById('settingPop').style.display='none';
+  drawMarkers();buildList(getFltList());
+}
 
 // 좌표변환
-function ll2t(la,ln,z){
-  var n=Math.pow(2,z);
-  return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};
-}
-function t2ll(tx,ty,z){
-  var n=Math.pow(2,z);
-  var ln=tx/n*360-180;
-  var la=Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R;
-  return{la:la,ln:ln};
-}
-(function(){
-  var sla=0,sln=0;
-  DALL.forEach(function(d){sla+=d[1];sln+=d[2];});
-  var c=ll2t(sla/DALL.length,sln/DALL.length,Z);CX=c.x;CY=c.y;
-})();
-
+function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
+function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
+(function(){var sla=0,sln=0;DALL.forEach(function(d){sla+=d[1];sln+=d[2];});var c=ll2t(sla/DALL.length,sln/DALL.length,Z);CX=c.x;CY=c.y;})();
 function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
 function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
 
 // 타일
 function drawTiles(){
-  var td=document.getElementById('tl');
-  var n=Math.pow(2,Z);
-  var x0=Math.floor(CX-W/512)-1,y0=Math.floor(CY-H/512)-1;
-  var x1=Math.ceil(CX+W/512)+1,y1=Math.ceil(CY+H/512)+1;
+  var td=document.getElementById('tl'),n=Math.pow(2,Z);
+  var x0=Math.floor(CX-W/512)-1,y0=Math.floor(CY-H/512)-1,x1=Math.ceil(CX+W/512)+1,y1=Math.ceil(CY+H/512)+1;
   td.querySelectorAll('.tile').forEach(function(t){
     if(+t.dataset.z!==Z){t.style.display='none';return;}
-    t.style.display='block';
-    var p=p2s(+t.dataset.x,+t.dataset.y);
-    t.style.left=p.x+'px';t.style.top=p.y+'px';
+    t.style.display='block';var p=p2s(+t.dataset.x,+t.dataset.y);t.style.left=p.x+'px';t.style.top=p.y+'px';
   });
   for(var tx=x0;tx<=x1;tx++){for(var ty=y0;ty<=y1;ty++){
     if(ty<0||ty>=n)continue;
     var ntx=((tx%n)+n)%n,k=Z+','+tx+','+ty;
     if(TC[k])continue;TC[k]=1;
-    var img=new Image();
-    img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;
-    img.dataset.ntx=ntx;img.dataset.ty2=ty;img.dataset.tz=Z;
-    img.onerror=function(){
-      if(this.dataset.tried)return;this.dataset.tried=1;
-      this.src='https://a.tile.openstreetmap.org/'+this.dataset.tz+'/'+this.dataset.ntx+'/'+this.dataset.ty2+'.png';
-    };
+    var img=new Image();img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;img.dataset.ntx=ntx;img.dataset.ty2=ty;img.dataset.tz=Z;
+    img.onerror=function(){if(this.dataset.tried)return;this.dataset.tried=1;this.src='https://a.tile.openstreetmap.org/'+this.dataset.tz+'/'+this.dataset.ntx+'/'+this.dataset.ty2+'.png';};
     img.src='https://map'+(Math.abs(tx+ty)%3+1)+'.daumcdn.net/map_2d_png/1906/L'+Z+'/'+ty+'/'+ntx+'.png';
-    var p=p2s(tx,ty);
-    img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
+    var p=p2s(tx,ty);img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
     td.appendChild(img);
   }}
 }
 
 // 클러스터
 function cluster(pts){
-  var cell=selMode?999:44,g={};
+  var cell=44,g={};
   pts.forEach(function(d){
     var t=ll2t(d[1],d[2],Z),x=(t.x-CX)*256+W/2,y=(t.y-CY)*256+H/2;
     if(x<-80||x>W+80||y<-80||y>H+80)return;
-    if(selMode){var k=d[0];g[k]={p:[d],la:d[1],ln:d[2],x:x,y:y};return;}
+    if(selMode){g[d[0]]={p:[d],la:d[1],ln:d[2],x:x,y:y};return;}
     var k=Math.floor(x/cell)+','+Math.floor(y/cell);
     if(!g[k])g[k]={p:[],la:0,ln:0,x:0,y:0};
     g[k].p.push(d);g[k].la+=d[1];g[k].ln+=d[2];g[k].x+=x;g[k].y+=y;
   });
-  return Object.keys(g).map(function(k){
-    var c=g[k],n=c.p.length;
-    return{pts:c.p,la:n>1?c.la/n:c.la,ln:n>1?c.ln/n:c.ln,x:n>1?c.x/n:c.x,y:n>1?c.y/n:c.y};
-  });
+  return Object.keys(g).map(function(k){var c=g[k],n=c.p.length;return{pts:c.p,la:n>1?c.la/n:c.la,ln:n>1?c.ln/n:c.ln,x:n>1?c.x/n:c.x,y:n>1?c.y/n:c.y};});
 }
 
-function getDotClass(nm){
-  if(selSet.has(nm))return'dot dot-sel';
-  if(isDone(nm))return'dot dot-done';
-  var w=getWorker(nm);
-  if(w===1)return'dot dot-w1';
-  if(w===2)return'dot dot-w2';
-  return'dot dot-todo';
-}
-function getLblClass(nm){
-  if(selSet.has(nm))return'mlb mlb-sel';
-  if(isDone(nm))return'mlb mlb-done';
-  var w=getWorker(nm);
-  if(w===1)return'mlb mlb-w1';
-  if(w===2)return'mlb mlb-w2';
-  return'mlb mlb-todo';
-}
-function getLblPrefix(nm){
-  if(selSet.has(nm))return'◉ ';
-  if(isDone(nm))return'✓ ';
-  var w=getWorker(nm);
-  if(w===1)return'① ';
-  if(w===2)return'② ';
-  return'';
+function getDotCls(nm){
+  if(selSet.has(nm))return'dot dsel';
+  if(isDone(nm))return'dot dd';
+  var w=getWorker(nm);if(w===1)return'dot dw1';if(w===2)return'dot dw2';if(w===3)return'dot dw3';return'dot dt';
 }
 
+// 마커 렌더 - 기본은 점만, 선택모드/zoom16+에서 라벨
 function drawMarkers(){
-  var md=document.getElementById('mk');
-  md.innerHTML='';
+  var md=document.getElementById('mk');md.innerHTML='';
+  var showLabel=selMode||Z>=16;
   cluster(DALL).forEach(function(g){
-    var div=document.createElement('div');
-    div.className='m';
+    var div=document.createElement('div');div.className='m';
     div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
     if(g.pts.length===1){
       var nm=g.pts[0][0];
-      div.innerHTML='<div class="'+getDotClass(nm)+'"></div><span class="'+getLblClass(nm)+'">'+getLblPrefix(nm)+nm+'</span>';
-      if(!selMode){
-        (function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
+      var dotHtml='<div class="'+getDotCls(nm)+'"></div>';
+      if(showLabel){
+        var lc=selSet.has(nm)?'mlb msel':isDone(nm)?'mlb md':getWorker(nm)===1?'mlb mw1':getWorker(nm)===2?'mlb mw2':getWorker(nm)===3?'mlb mw3':'mlb mt';
+        dotHtml+='<span class="'+lc+'" style="font-size:14px;font-weight:800">'+nm+'</span>';
       }
+      div.innerHTML=dotHtml;
+      if(!selMode)(function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
     }else{
-      var doneN=g.pts.filter(function(p){return isDone(p[0]);}).length;
-      var w1N=g.pts.filter(function(p){return getWorker(p[0])===1&&!isDone(p[0]);}).length;
-      var w2N=g.pts.filter(function(p){return getWorker(p[0])===2&&!isDone(p[0]);}).length;
-      var bg=doneN===g.pts.length?'#2dc653':w1N>w2N?'rgba(59,130,246,.85)':w2N>0?'rgba(249,115,22,.85)':'rgba(255,235,0,.92)';
-      div.innerHTML='<div class="cl" style="background:'+bg+';color:'+(doneN===g.pts.length||w1N>0||w2N>0?'#fff':'#1a0a00')+'">'+g.pts.length+'</div>';
-      if(!selMode){
-        (function(la,ln){div.onclick=function(){
-          var nz=Math.min(Z+2,18),f=Math.pow(2,nz-Z);
-          var c=ll2t(la,ln,nz);CX=c.x;CY=c.y;Z=nz;
-          TC={};document.getElementById('tl').innerHTML='';draw();
-        };})(g.la,g.ln);
-      }
+      var dn=g.pts.filter(function(p){return isDone(p[0]);}).length;
+      var w1=g.pts.filter(function(p){return getWorker(p[0])===1&&!isDone(p[0]);}).length;
+      var w2=g.pts.filter(function(p){return getWorker(p[0])===2&&!isDone(p[0]);}).length;
+      var w3=g.pts.filter(function(p){return getWorker(p[0])===3&&!isDone(p[0]);}).length;
+      var bg=dn===g.pts.length?'#2dc653':w1>w2&&w1>w3?'rgba(59,130,246,.85)':w2>w1&&w2>w3?'rgba(249,115,22,.85)':w3>w1&&w3>w2?'rgba(168,85,247,.85)':'rgba(255,235,0,.92)';
+      var fc=dn===g.pts.length||w1>0||w2>0||w3>0?'#fff':'#1a0a00';
+      div.innerHTML='<div class="cl" style="background:'+bg+';color:'+fc+'">'+g.pts.length+'</div>';
+      if(!selMode)(function(la,ln){div.onclick=function(){var nz=Math.min(Z+2,18),f=Math.pow(2,nz-Z);var c=ll2t(la,ln,nz);CX=c.x;CY=c.y;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();};})(g.la,g.ln);
     }
     md.appendChild(div);
   });
-  // 통계 업데이트
-  var w1=0,w2=0,done=0;
-  DALL.forEach(function(d){
-    if(isDone(d[0]))done++;
-    else if(getWorker(d[0])===1)w1++;
-    else if(getWorker(d[0])===2)w2++;
-  });
-  document.getElementById('cnt').textContent=DALL.length+'개';
-  document.getElementById('w1cnt').textContent=w1;
-  document.getElementById('w2cnt').textContent=w2;
-  document.getElementById('dcnt').textContent=done;
 }
+function updateStats(){
+  var w1=0,w2=0,w3=0,dn=0;
+  DALL.forEach(function(d){if(isDone(d[0]))dn++;else{var w=getWorker(d[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;}});
+  document.getElementById('cnt').textContent=DALL.length+'개';
+  document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
+  document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
+}
+function draw(){drawTiles();drawMarkers();updateStats();}
 
-function draw(){drawTiles();drawMarkers();}
-
-// 모드 전환
+// 모드전환
 function toggleMode(){
   selMode=!selMode;
-  var btn=document.getElementById('modeBtn');
-  var mapEl=document.getElementById('map');
-  if(selMode){
-    btn.textContent='🖐 이동모드';
-    btn.className='tbtn tbtn-active';
-    mapEl.className='map mode-sel';
-    clearSel();
-  }else{
-    btn.textContent='⬜ 범위선택';
-    btn.className='tbtn tbtn-normal';
-    mapEl.className='map mode-pan';
-    clearSel();
-  }
+  var btn=document.getElementById('modeBtn'),m=document.getElementById('map');
+  if(selMode){btn.textContent='🖐 이동모드';btn.className='tbtn tbtn-a';m.className='map sel';clearSel();}
+  else{btn.textContent='⬜ 범위선택';btn.className='tbtn tbtn-n';m.className='map pan';clearSel();}
   drawMarkers();
 }
 
-// 사각형 선택
-var selStart=null,selEnd=null;
-function getMapCoords(e){
-  var rect=document.getElementById('map').getBoundingClientRect();
-  var cx,cy;
-  if(e.touches){cx=e.touches[0].clientX;cy=e.touches[0].clientY;}
-  else{cx=e.clientX;cy=e.clientY;}
-  return{x:cx-rect.left,y:cy-rect.top};
+// ── 자유 폴리곤 (라쏘) 선택 ──────────────────────────────────
+var lassoPath=[];
+var lassoCanvas=document.getElementById('lassoCanvas');
+var lassoCtx=lassoCanvas.getContext('2d');
+function resizeCanvas(){lassoCanvas.width=W;lassoCanvas.height=H;}
+resizeCanvas();
+
+function drawLasso(){
+  lassoCtx.clearRect(0,0,W,H);
+  if(lassoPath.length<2)return;
+  lassoCtx.beginPath();
+  lassoCtx.moveTo(lassoPath[0].x,lassoPath[0].y);
+  for(var i=1;i<lassoPath.length;i++)lassoCtx.lineTo(lassoPath[i].x,lassoPath[i].y);
+  lassoCtx.closePath();
+  lassoCtx.fillStyle='rgba(168,85,247,.12)';
+  lassoCtx.fill();
+  lassoCtx.strokeStyle='#a855f7';
+  lassoCtx.lineWidth=2;
+  lassoCtx.setLineDash([6,3]);
+  lassoCtx.stroke();
 }
 
-function updateSelRect(){
-  if(!selStart||!selEnd)return;
-  var x1=Math.min(selStart.x,selEnd.x),y1=Math.min(selStart.y,selEnd.y);
-  var x2=Math.max(selStart.x,selEnd.x),y2=Math.max(selStart.y,selEnd.y);
-  var r=document.getElementById('selRect');
-  r.style.cssText='display:block;left:'+x1+'px;top:'+y1+'px;width:'+(x2-x1)+'px;height:'+(y2-y1)+'px';
+// 폴리곤 내부 점 판별 (ray casting)
+function pointInPoly(px,py,poly){
+  var inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
 }
 
-function finishSel(){
-  if(!selStart||!selEnd)return;
-  var x1=Math.min(selStart.x,selEnd.x),y1=Math.min(selStart.y,selEnd.y);
-  var x2=Math.max(selStart.x,selEnd.x),y2=Math.max(selStart.y,selEnd.y);
-  if(x2-x1<5&&y2-y1<5){selStart=selEnd=null;return;}
-  // 화면 좌표 → 타일 좌표 → 위경도
-  var tl1=s2t(x1,y1),tl2=s2t(x2,y2);
-  var ll1=t2ll(tl1.x,tl1.y,Z),ll2=t2ll(tl2.x,tl2.y,Z);
-  var minLa=Math.min(ll1.la,ll2.la),maxLa=Math.max(ll1.la,ll2.la);
-  var minLn=Math.min(ll1.ln,ll2.ln),maxLn=Math.max(ll1.ln,ll2.ln);
+function finishLasso(){
+  if(lassoPath.length<3){lassoPath=[];lassoCtx.clearRect(0,0,W,H);return;}
   selSet=new Set();
   DALL.forEach(function(d){
-    if(d[1]>=minLa&&d[1]<=maxLa&&d[2]>=minLn&&d[2]<=maxLn)selSet.add(d[0]);
+    var t=ll2t(d[1],d[2],Z),px=(t.x-CX)*256+W/2,py=(t.y-CY)*256+H/2;
+    if(pointInPoly(px,py,lassoPath))selSet.add(d[0]);
   });
-  selStart=selEnd=null;
-  document.getElementById('selRect').style.display='none';
-  document.getElementById('selCount').textContent=selSet.size+'개 선택됨';
-  document.getElementById('selPanel').style.display=selSet.size>0?'block':'none';
-  drawMarkers();
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  updateSelPanel();drawMarkers();
 }
 
-function assignWorker(w){
-  if(db){
-    var upd={};
-    selSet.forEach(function(nm){upd[nm]={worker:w};});
-    if(document.getElementById('syncing'))document.getElementById('syncing').style.display='block';
-    db.ref('projects/'+PROJ_ID+'/status').update(upd).then(function(){
-      if(document.getElementById('syncing'))setTimeout(function(){document.getElementById('syncing').style.display='none';},600);
-    });
-  }
-  selSet.forEach(function(nm){setFbStatus(nm,{worker:w});});
-  clearSel();
+function updateSelPanel(){
+  document.getElementById('spCnt').textContent=selSet.size+'개 선택됨';
+  document.getElementById('selPanel').style.display=selSet.size>0?'block':'none';
+  document.getElementById('restRow').style.display=selSet.size>0?'flex':'none';
+}
+
+// 선택 액션
+function assignW(w){
+  var upd={};selSet.forEach(function(nm){upd[nm]={worker:w};});
+  setFbStatusBatch(upd);clearSel();
+}
+function assignRest(w){
+  var upd={};
+  DALL.forEach(function(d){if(!selSet.has(d[0]))upd[d[0]]={worker:w};});
+  setFbStatusBatch(upd);clearSel();
+}
+function invertSel(){
+  var newSel=new Set();
+  DALL.forEach(function(d){if(!selSet.has(d[0]))newSel.add(d[0]);});
+  selSet=newSel;updateSelPanel();drawMarkers();
 }
 function clearSel(){
   selSet=new Set();
   document.getElementById('selPanel').style.display='none';
-  document.getElementById('selRect').style.display='none';
-  selStart=selEnd=null;
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
   drawMarkers();
 }
+function clearAssign(){
+  var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});
+  setFbStatusBatch(upd);clearSel();
+}
 
-// 드래그/터치 이벤트
-var dr={on:0,sx:0,sy:0,cx:0,cy:0};
+// 드래그/터치
+var dr={on:0,sx:0,sy:0,cx:0,cy:0},tp={on:0,sx:0,sy:0,cx:0,cy:0,pd:0};
+var isDrawing=false;
 var mapEl=document.getElementById('map');
-mapEl.className='map mode-pan';
+function getXY(e){var cx=e.touches?e.touches[0].clientX:e.clientX,cy=e.touches?e.touches[0].clientY:e.clientY;return{x:cx,y:cy};}
 
 mapEl.addEventListener('mousedown',function(e){
-  if(selMode){selStart=getMapCoords(e);selEnd=selStart;}
+  if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
   else{dr={on:1,sx:e.clientX,sy:e.clientY,cx:CX,cy:CY};mapEl.classList.add('gr');}
 });
 document.addEventListener('mousemove',function(e){
-  if(selMode&&selStart){selEnd=getMapCoords(e);updateSelRect();}
+  if(selMode&&isDrawing){lassoPath.push(getXY(e));drawLasso();}
   else if(dr.on){CX=dr.cx-(e.clientX-dr.sx)/256;CY=dr.cy-(e.clientY-dr.sy)/256;draw();}
 });
-document.addEventListener('mouseup',function(e){
-  if(selMode&&selStart){finishSel();}
+document.addEventListener('mouseup',function(){
+  if(selMode&&isDrawing){isDrawing=false;lassoCanvas.style.display='none';finishLasso();}
   dr.on=0;mapEl.classList.remove('gr');
 });
 
-var tp={on:0,sx:0,sy:0,cx:0,cy:0,pd:0};
 mapEl.addEventListener('touchstart',function(e){
-  if(e.touches.length===2){
-    tp.on=0;
-    tp.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-  }else if(selMode){
-    selStart=getMapCoords(e);selEnd=selStart;
-  }else{
-    tp={on:1,sx:e.touches[0].clientX,sy:e.touches[0].clientY,cx:CX,cy:CY,pd:0};
-  }
+  if(e.touches.length===2){tp.on=0;tp.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+  else if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
+  else{tp={on:1,sx:e.touches[0].clientX,sy:e.touches[0].clientY,cx:CX,cy:CY,pd:0};}
 },{passive:true});
 mapEl.addEventListener('touchmove',function(e){
-  if(e.touches.length===2&&tp.pd>0){
-    var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    if(Math.abs(d-tp.pd)>25){dz(d>tp.pd?1:-1);tp.pd=d;}
-  }else if(selMode&&selStart&&e.touches.length===1){
-    selEnd=getMapCoords(e);updateSelRect();
-  }else if(tp.on&&e.touches.length===1){
-    CX=tp.cx-(e.touches[0].clientX-tp.sx)/256;
-    CY=tp.cy-(e.touches[0].clientY-tp.sy)/256;draw();
-  }
+  if(e.touches.length===2&&tp.pd){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(Math.abs(d-tp.pd)>25){dz(d>tp.pd?1:-1);tp.pd=d;}}
+  else if(selMode&&isDrawing&&e.touches.length===1){lassoPath.push(getXY(e));drawLasso();}
+  else if(tp.on&&e.touches.length===1){CX=tp.cx-(e.touches[0].clientX-tp.sx)/256;CY=tp.cy-(e.touches[0].clientY-tp.sy)/256;draw();}
 },{passive:true});
 mapEl.addEventListener('touchend',function(){
-  if(selMode&&selStart)finishSel();
+  if(selMode&&isDrawing){isDrawing=false;lassoCanvas.style.display='none';finishLasso();}
   tp.on=0;
 },{passive:true});
 mapEl.addEventListener('wheel',function(e){e.preventDefault();dz(e.deltaY<0?1:-1);},{passive:false});
 mapEl.onclick=function(){cPop();};
 
-function dz(d){
-  var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;
-  var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;
-  TC={};document.getElementById('tl').innerHTML='';draw();
-}
+function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();}
 
-// 주소조회
+// 주소
 function getAddr(la,ln,cb){
-  var key=la.toFixed(5)+','+ln.toFixed(5);
-  if(addrCache[key]){cb(addrCache[key]);return;}
+  var k=la.toFixed(5)+','+ln.toFixed(5);if(addrCache[k]){cb(addrCache[k]);return;}
   fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18')
-    .then(function(r){return r.json();})
-    .then(function(d){
+    .then(function(r){return r.json();}).then(function(d){
       var addr='주소 없음';
-      if(d&&d.address){
-        var a=d.address,parts=[];
-        if(a.province||a.state)parts.push(a.province||a.state);
-        if(a.city||a.county||a.town)parts.push(a.city||a.county||a.town);
-        if(a.suburb||a.quarter||a.neighbourhood||a.village)parts.push(a.suburb||a.quarter||a.neighbourhood||a.village);
-        if(a.road)parts.push(a.road);
-        if(a.house_number)parts.push(a.house_number);
-        addr=parts.length>0?parts.join(' '):(d.display_name||'주소 없음');
-      }
-      addrCache[key]=addr;cb(addr);
+      if(d&&d.address){var a=d.address,p=[];
+        if(a.province||a.state)p.push(a.province||a.state);
+        if(a.city||a.county||a.town)p.push(a.city||a.county||a.town);
+        if(a.suburb||a.quarter||a.neighbourhood||a.village)p.push(a.suburb||a.quarter||a.neighbourhood||a.village);
+        if(a.road)p.push(a.road);if(a.house_number)p.push(a.house_number);
+        addr=p.length?p.join(' '):(d.display_name||'주소 없음');}
+      addrCache[k]=addr;cb(addr);
     }).catch(function(){cb('주소 조회 실패');});
 }
 
 // 팝업
 function sPop(d,x,y){
-  if(selMode)return;
-  curPop=d;
-  var nm=d[0],la=d[1],ln=d[2];
-  var done=isDone(nm),w=getWorker(nm);
+  if(selMode)return;curPop=d;
+  var nm=d[0],la=d[1],ln=d[2],dn=isDone(nm),w=getWorker(nm);
   document.getElementById('pn').textContent=nm;
   document.getElementById('pc').textContent=la.toFixed(6)+' / '+ln.toFixed(6);
-  document.getElementById('pa').textContent='주소 조회 중...';
-  document.getElementById('pa').className='paddr ld';
+  document.getElementById('pa').textContent='주소 조회 중...';document.getElementById('pa').className='paddr ld';
   var pst=document.getElementById('pst');
-  if(done){pst.textContent='✅ 완료';pst.className='pstatus pstatus-done';}
-  else if(w===1){pst.textContent='🔵 담당자1';pst.className='pstatus pstatus-w1';}
-  else if(w===2){pst.textContent='🟠 담당자2';pst.className='pstatus pstatus-w2';}
-  else{pst.textContent='📌 미할당';pst.className='pstatus pstatus-todo';}
-  document.getElementById('pdone').style.display=done?'none':'block';
-  document.getElementById('pundo').style.display=done?'block':'none';
+  if(dn){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=dn?'none':'block';
+  document.getElementById('pud').style.display=dn?'block':'none';
   document.getElementById('pk').href='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
   getAddr(la,ln,function(addr){var pa=document.getElementById('pa');if(pa){pa.textContent=addr;pa.className='paddr';}});
   var pop=document.getElementById('pop');
-  pop.style.left=Math.min(x+14,W-265)+'px';
-  pop.style.top=Math.max(Math.min(y-130,H-260),58)+'px';
-  pop.style.display='block';
+  pop.style.left=Math.min(x+14,W-265)+'px';pop.style.top=Math.max(Math.min(y-130,H-270),58)+'px';pop.style.display='block';
 }
 function cPop(){document.getElementById('pop').style.display='none';curPop=null;}
-
 function toggleDone(){
-  if(!curPop)return;
-  var nm=curPop[0];
-  var done=!isDone(nm);
+  if(!curPop)return;var nm=curPop[0],done=!isDone(nm);
   setFbStatus(nm,{done:done,doneAt:done?Date.now():null});
-  var done=isDone(nm),w=getWorker(nm);
-  var pst=document.getElementById('pst');
-  if(done){pst.textContent='✅ 완료';pst.className='pstatus pstatus-done';}
-  else if(w===1){pst.textContent='🔵 담당자1';pst.className='pstatus pstatus-w1';}
-  else if(w===2){pst.textContent='🟠 담당자2';pst.className='pstatus pstatus-w2';}
-  else{pst.textContent='📌 미할당';pst.className='pstatus pstatus-todo';}
-  document.getElementById('pdone').style.display=done?'none':'block';
-  document.getElementById('pundo').style.display=done?'block':'none';
-  drawMarkers();buildList(getFilteredList());
+  var pst=document.getElementById('pst'),w=getWorker(nm);
+  if(done){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=done?'none':'block';
+  document.getElementById('pud').style.display=done?'block':'none';
+  drawMarkers();updateStats();buildList(getFltList());
 }
 
-// 검색/필터
-function srch(q){
-  q=q.trim().toUpperCase();
-  document.getElementById('si').value=q;
-  document.getElementById('srch2').value=q;
-  buildList(getFilteredList(q));
-  if(!shOn)openSh();
-}
-function setFilter(f){
-  curFilter=f;
-  ['all','todo','w1','w2','done'].forEach(function(t){
-    document.getElementById('ft-'+t).className='ftab'+(t===f?' on':'');
-  });
-  buildList(getFilteredList());
-}
-function getFilteredList(q){
+// 목록
+function srch(q){q=q.trim().toUpperCase();document.getElementById('si').value=q;document.getElementById('s2').value=q;buildList(getFltList(q));if(!shOn)openSh();}
+function setFlt(f){curFlt=f;['all','todo','w1','w2','w3','done'].forEach(function(t){document.getElementById('ft-'+t).className='ft'+(t===f?' on':'');});buildList(getFltList());}
+function getFltList(q){
   var base=DALL;
-  if(curFilter==='todo')base=DALL.filter(function(d){return!isDone(d[0])&&!getWorker(d[0]);});
-  else if(curFilter==='w1')base=DALL.filter(function(d){return getWorker(d[0])===1&&!isDone(d[0]);});
-  else if(curFilter==='w2')base=DALL.filter(function(d){return getWorker(d[0])===2&&!isDone(d[0]);});
-  else if(curFilter==='done')base=DALL.filter(function(d){return isDone(d[0]);});
+  if(curFlt==='todo')base=DALL.filter(function(d){return!isDone(d[0])&&!getWorker(d[0]);});
+  else if(curFlt==='w1')base=DALL.filter(function(d){return getWorker(d[0])===1&&!isDone(d[0]);});
+  else if(curFlt==='w2')base=DALL.filter(function(d){return getWorker(d[0])===2&&!isDone(d[0]);});
+  else if(curFlt==='w3')base=DALL.filter(function(d){return getWorker(d[0])===3&&!isDone(d[0]);});
+  else if(curFlt==='done')base=DALL.filter(function(d){return isDone(d[0]);});
   if(q){var qu=q.toUpperCase();base=base.filter(function(d){return d[0].toUpperCase().indexOf(qu)>=0;});}
   return base;
 }
 function buildList(d){
-  var w1=0,w2=0,done=0,todo=0;
-  DALL.forEach(function(x){
-    if(isDone(x[0]))done++;
-    else if(getWorker(x[0])===1)w1++;
-    else if(getWorker(x[0])===2)w2++;
-    else todo++;
-  });
-  document.getElementById('shcount').textContent='미할당 '+todo+' | 담당1 '+w1+' | 담당2 '+w2+' | 완료 '+done;
+  var w1=0,w2=0,w3=0,dn=0,td=0;
+  DALL.forEach(function(x){if(isDone(x[0]))dn++;else{var w=getWorker(x[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;else td++;}});
+  document.getElementById('shc').textContent='미할당 '+td+' | '+workerNames['1']+' '+w1+' | '+workerNames['2']+' '+w2+' | '+workerNames['3']+' '+w3+' | 완료 '+dn;
   var h='';
   for(var i=0;i<Math.min(d.length,500);i++){
-    var nm=d[i][0],dn=isDone(nm),ww=getWorker(nm);
-    var cls=dn?'lnum-done':ww===1?'lnum-w1':ww===2?'lnum-w2':'lnum-todo';
-    var tag=dn?'✅':ww===1?'🔵':ww===2?'🟠':'';
-    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+nm.replace(/'/g,"\\'")+'\')"><div class="lnum '+cls+'">'+nm+'</div><div style="flex:1"><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div>'+(tag?'<span class="ltag">'+tag+'</span>':'')+'</div>';
+    var nm=d[i][0],dn2=isDone(nm),ww=getWorker(nm);
+    var cls=dn2?'ld2':ww===1?'lw1':ww===2?'lw2':ww===3?'lw3':'lt';
+    var tag=dn2?'✅':ww===1?'🔵':ww===2?'🟠':ww===3?'🟣':'';
+    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+nm.replace(/'/g,"\\'")+'\')"><div class="lnum '+cls+'">'+nm+'</div><div style="flex:1"><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div>'+(tag?'<span style="font-size:12px;margin-left:auto">'+tag+'</span>':'')+'</div>';
   }
-  if(d.length>500)h+='<div style="padding:12px;text-align:center;font-size:11px;color:#ccc">더 찾으려면 검색 (전체 '+d.length+'개)</div>';
+  if(d.length>500)h+='<div style="padding:12px;text-align:center;font-size:11px;color:#ccc">검색으로 더 찾아보세요 ('+d.length+'개)</div>';
   document.getElementById('shl').innerHTML=h;
 }
 function flyTo(la,ln,nm){
   cPop();
   if(Z<16){var nz=17,f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';}
   var c=ll2t(la,ln,Z);CX=c.x;CY=c.y;draw();
-  if(nm){setTimeout(function(){
-    var d=DALL.find(function(x){return x[0]===nm;});
-    if(d){var t=ll2t(d[1],d[2],Z);sPop(d,(t.x-CX)*256+W/2,(t.y-CY)*256+H/2);}
-  },300);}
+  if(nm)setTimeout(function(){var d=DALL.find(function(x){return x[0]===nm;});if(d){var t=ll2t(d[1],d[2],Z);sPop(d,(t.x-CX)*256+W/2,(t.y-CY)*256+H/2);}},300);
 }
 function togSh(){shOn?closeSh():openSh();}
 function openSh(){shOn=true;document.getElementById('sh').classList.add('on');}
@@ -615,8 +559,8 @@ function closeSh(){shOn=false;document.getElementById('sh').classList.remove('on
 var sx2=0;
 document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.touches[0].clientX;},{passive:true});
 document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
-window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;draw();});
+window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;resizeCanvas();draw();});
+updateWorkerNames();
 draw();buildList(DALL);
-// Firebase 백그라운드 로딩 (지도 표시 후)
-setTimeout(fbLoad, 500);
+setTimeout(fbLoad,500);
 </script></body></html>
