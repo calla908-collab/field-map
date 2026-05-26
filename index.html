@@ -133,6 +133,11 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
+<!-- 배분 초기화 버튼 (항상 표시) -->
+<div id="resetBar" style="display:none;position:fixed;bottom:16px;right:16px;z-index:401">
+  <button onclick="resetAllAssign()" style="background:#dc2626;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25)">🗑 배분 전체 초기화</button>
+</div>
+
 <div id="pop" onclick="event.stopPropagation()">
   <button class="pclose" onclick="event.stopPropagation();cPop()">×</button>
   <div class="pname" id="pn"></div>
@@ -312,7 +317,7 @@ function getDotCls(nm){
 // 마커 렌더 - 기본은 점만, 선택모드/zoom16+에서 라벨
 function drawMarkers(){
   var md=document.getElementById('mk');md.innerHTML='';
-  var showLabel=selMode||Z>=16;
+  var showLabel=!selMode&&Z>=16; // 선택모드에서는 점만 표시
   cluster(DALL).forEach(function(g){
     var div=document.createElement('div');div.className='m';
     div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
@@ -351,8 +356,16 @@ function draw(){drawTiles();drawMarkers();updateStats();}
 function toggleMode(){
   selMode=!selMode;
   var btn=document.getElementById('modeBtn'),m=document.getElementById('map');
-  if(selMode){btn.textContent='🖐 이동모드';btn.className='tbtn tbtn-a';m.className='map sel';clearSel();}
-  else{btn.textContent='⬜ 범위선택';btn.className='tbtn tbtn-n';m.className='map pan';clearSel();}
+  var rb=document.getElementById('resetBar');
+  if(selMode){
+    btn.textContent='🖐 이동모드';btn.className='tbtn tbtn-a';m.className='map sel';
+    if(rb)rb.style.display='block';
+    clearSel();
+  }else{
+    btn.textContent='⬜ 범위선택';btn.className='tbtn tbtn-n';m.className='map pan';
+    if(rb)rb.style.display='none';
+    clearSel();
+  }
   drawMarkers();
 }
 
@@ -429,6 +442,14 @@ function clearSel(){
 function clearAssign(){
   var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});
   setFbStatusBatch(upd);clearSel();
+}
+
+function resetAllAssign(){
+  if(!confirm('모든 담당자 배분을 초기화할까요?\n완료 처리는 유지됩니다.'))return;
+  var upd={};
+  DALL.forEach(function(d){upd[d[0]]={worker:0};});
+  setFbStatusBatch(upd);
+  clearSel();
 }
 
 // 드래그/터치
