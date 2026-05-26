@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>김포시기준점</title>
+<script>
+var db=null,fbState={},PROJ_ID='p640b9dc9';
+var workerNames=JSON.parse(localStorage.getItem('fm_wnames')||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
+function fbLoad(){
+  var s1=document.createElement('script');s1.async=true;
+  s1.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+  s1.onload=function(){
+    var s2=document.createElement('script');s2.async=true;
+    s2.src='https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
+    s2.onload=function(){
+      try{
+        if(!firebase.apps.length)firebase.initializeApp({"apiKey": "AIzaSyDCZils_rrPT3A5c163FM4Ij8ZXQBvPuqE", "databaseURL": "https://landsurvey2027-default-rtdb.firebaseio.com", "projectId": "landsurvey2027"});
+        db=firebase.database();
+        db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
+          fbState=snap.val()||{};
+          drawMarkers();updateStats();buildList(getFltList());
+        });
+      }catch(e){console.warn('FB:',e);}
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+</script>
+</head><body>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+#map{position:fixed;inset:0;overflow:hidden;background:#e8e0d8}
+#map.pan{cursor:grab}#map.pan.gr{cursor:grabbing}#map.sel{cursor:crosshair}
+#tl,#mk{position:absolute;top:0;left:0}
+#mk{pointer-events:none}
+.tile{position:absolute;width:256px;height:256px}
+.m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;display:flex;align-items:center;gap:3px}
+.m.noptr{pointer-events:none!important}
+.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
+.dt{background:#e63946}.dd{background:#2dc653}
+.dw1{background:#3b82f6}.dw2{background:#f97316}.dw3{background:#a855f7}
+.dsel{background:#FFD700;border-color:#333;transform:scale(1.5)}
+.mlb{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;line-height:1.4;pointer-events:none}
+.mt{background:rgba(0,0,0,.7);color:#fff}.md{background:rgba(45,198,83,.9);color:#fff}
+.mw1{background:rgba(59,130,246,.9);color:#fff}.mw2{background:rgba(249,115,22,.9);color:#fff}
+.mw3{background:rgba(168,85,247,.9);color:#fff}.msel{background:rgba(255,215,0,.95);color:#333}
+.cl{width:38px;height:38px;border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+/* 라쏘 캔버스 */
+#lassoCanvas{position:fixed;inset:0;z-index:250;pointer-events:none;display:none}
+/* 선택 패널 */
+#selPanel{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.22);display:none;min-width:320px}
+.sp-cnt{font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-align:center}
+.sp-row{display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap}
+.sp-btn{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;font-size:12px;font-weight:700;border:none;cursor:pointer;text-align:center}
+.sp-w1{background:#3b82f6;color:#fff}.sp-w2{background:#f97316;color:#fff}
+.sp-w3{background:#a855f7;color:#fff}.sp-inv{background:#1a1a2e;color:#FFEB00}
+.sp-can{background:#f0f0f0;color:#444}.sp-clr{background:#fee2e2;color:#dc2626}
+.sp-rest{background:#e8f8f0;color:#065f46;font-size:11px}
+/* 팝업 */
+#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:250px;display:none}
+.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:3px;padding-right:22px}
+.pcoord{color:#bbb;font-size:10px;margin-bottom:4px}
+.paddr{color:#444;font-size:12px;margin-bottom:10px;line-height:1.6;min-height:18px}
+.paddr.ld{color:#bbb;font-style:italic}
+.pst{font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.pst-t{background:#fff0f0;color:#e63946}.pst-d{background:#f0fff4;color:#2dc653}
+.pst-w1{background:#eff6ff;color:#3b82f6}.pst-w2{background:#fff7ed;color:#f97316}.pst-w3{background:#faf5ff;color:#a855f7}
+.pbtns{display:flex;flex-direction:column;gap:6px}
+.pbtn{display:block;padding:10px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;border:none;width:100%}
+.pbtn-k{background:#FFEB00;color:#1a0a00}.pbtn-done{background:#2dc653;color:#fff}
+.pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
+.pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer}
+/* 상단바 */
+#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
+#tb h1{font-size:13px;font-weight:700;color:#1a0a00;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+#si{flex:1;min-width:60px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:13px;color:#1a0a00;outline:none}
+.tbtn{border:none;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tbtn-n{background:rgba(0,0,0,.12);color:#1a0a00}.tbtn-a{background:#a855f7;color:#fff}
+/* 상태바 */
+#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:20px;padding:4px 14px;font-size:11px;color:#fff;display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+#syncing{display:none;position:fixed;top:58px;right:12px;z-index:100;background:rgba(0,0,0,.65);color:#FFEB00;border-radius:16px;padding:3px 12px;font-size:11px}
+/* 줌/패널 */
+#zm{position:fixed;right:12px;top:88px;z-index:100;display:flex;flex-direction:column;gap:6px}
+#zm button{width:40px;height:40px;background:#fff;border:none;border-radius:10px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:280px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+#sh.on{transform:translateX(0)}
+#shh{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9f9f9}
+#shc{font-size:11px;color:#888;margin-top:2px}
+#shx{background:none;border:none;font-size:22px;color:#bbb;cursor:pointer}
+#flt{display:flex;border-bottom:1px solid #f0f0f0;flex-shrink:0;overflow-x:auto}
+.ft{flex:1;min-width:44px;padding:8px 3px;text-align:center;font-size:10px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;white-space:nowrap}
+.ft.on{color:#1a0a00;border-bottom-color:#FFEB00}
+#s2{width:100%;padding:8px 12px;border:none;border-bottom:1px solid #f0f0f0;font-size:13px;outline:none;flex-shrink:0}
+#shl{flex:1;overflow-y:auto}
+.li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:.5px solid #f2f2f2;cursor:pointer}
+.li:hover{background:#f8f8f8}
+.lnum{min-width:58px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 5px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lt{background:#FFEB00;color:#1a0a00}.ld2{background:#2dc653;color:#fff}
+.lw1{background:#3b82f6;color:#fff}.lw2{background:#f97316;color:#fff}.lw3{background:#a855f7;color:#fff}
+.lcoord{font-size:10px;color:#aaa;margin-top:1px}
+/* 담당자 설정 팝업 */
+#settingPop{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+#settingBox{background:#fff;border-radius:16px;padding:20px;width:300px;max-width:90vw}
+#settingBox h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wdot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.winput{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;outline:none}
+#legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
+.lg{display:flex;align-items:center;gap:6px}
+.lgd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+
+<div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
+<canvas id="lassoCanvas"></canvas>
+<div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
+
+<div id="selPanel">
+  <div class="sp-cnt" id="spCnt">0개 선택됨</div>
+  <div class="sp-row">
+    <button class="sp-btn sp-w1" id="spW1" onclick="assignW(1)">🔵 <span id="spN1">담당자1</span></button>
+    <button class="sp-btn sp-w2" id="spW2" onclick="assignW(2)">🟠 <span id="spN2">담당자2</span></button>
+    <button class="sp-btn sp-w3" id="spW3" onclick="assignW(3)">🟣 <span id="spN3">담당자3</span></button>
+  </div>
+  <div class="sp-row">
+    <button class="sp-btn sp-inv" onclick="invertSel()">↔ 선택 반전</button>
+    <button class="sp-btn sp-can" onclick="clearSel()">✕ 선택취소</button>
+    <button class="sp-btn sp-clr" onclick="clearAssign()">🗑 할당해제</button>
+  </div>
+  <div class="sp-row" id="restRow" style="display:none">
+    <button class="sp-btn sp-rest" id="restBtn1" onclick="assignRest(1)">나머지→<span id="rn1">담당1</span></button>
+    <button class="sp-btn sp-rest" id="restBtn2" onclick="assignRest(2)">나머지→<span id="rn2">담당2</span></button>
+    <button class="sp-btn sp-rest" id="restBtn3" onclick="assignRest(3)">나머지→<span id="rn3">담당3</span></button>
+  </div>
+</div>
+
+<!-- 배분 초기화 버튼 (항상 표시) -->
+<div id="resetBar" style="display:none;position:fixed;bottom:16px;right:16px;z-index:401">
+  <button onclick="resetAllAssign()" style="background:#dc2626;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25)">🗑 배분 전체 초기화</button>
+</div>
+
+<div id="pop" onclick="event.stopPropagation()">
+  <button class="pclose" onclick="event.stopPropagation();cPop()">×</button>
+  <div class="pname" id="pn"></div>
+  <div class="pst" id="pst"></div>
+  <div class="pcoord" id="pc"></div>
+  <div class="paddr ld" id="pa">주소 조회 중...</div>
+  <div class="pbtns">
+    <a class="pbtn pbtn-k" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+    <div style="display:flex;gap:5px;margin-bottom:0">
+      <button onclick="event.stopPropagation();changeWorker(1)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#3b82f6;color:#fff">🔵 <span id="pw1">담당1</span></button>
+      <button onclick="event.stopPropagation();changeWorker(2)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#f97316;color:#fff">🟠 <span id="pw2">담당2</span></button>
+      <button onclick="event.stopPropagation();changeWorker(3)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#a855f7;color:#fff">🟣 <span id="pw3">담당3</span></button>
+      <button onclick="event.stopPropagation();changeWorker(0)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#e5e7eb;color:#666">해제</button>
+    </div>
+    <button class="pbtn pbtn-done" id="pdn" onclick="event.stopPropagation();toggleDone()">✅ 완료 처리</button>
+    <button class="pbtn pbtn-undo" id="pud" onclick="event.stopPropagation();toggleDone()" style="display:none">↩ 완료 취소</button>
+  </div>
+</div>
+
+<div id="tb">
+  <h1>📍 김포시기준점</h1>
+  <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
+  <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
+  <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
+  <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
+</div>
+<div id="bd">
+  <span id="cnt">-</span>
+  <span style="color:#60a5fa;font-weight:600">🔵<span id="w1c">0</span></span>
+  <span style="color:#fb923c;font-weight:600">🟠<span id="w2c">0</span></span>
+  <span style="color:#c084fc;font-weight:600">🟣<span id="w3c">0</span></span>
+  <span style="color:#4ade80;font-weight:600">✅<span id="dnc">0</span></span>
+</div>
+<div id="syncing">🔄 동기화중</div>
+<div id="zm"><button onclick="dz(1)">+</button><button onclick="dz(-1)">−</button></div>
+<div id="legend">
+  <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
+  <div class="lg"><div class="lgd" style="background:#3b82f6"></div><span id="lgn1">담당자1</span></div>
+  <div class="lg"><div class="lgd" style="background:#f97316"></div><span id="lgn2">담당자2</span></div>
+  <div class="lg"><div class="lgd" style="background:#a855f7"></div><span id="lgn3">담당자3</span></div>
+  <div class="lg"><div class="lgd" style="background:#2dc653"></div>완료</div>
+</div>
+<div id="sh">
+  <div id="shh">
+    <div><strong>포인트 목록</strong><div id="shc"></div></div>
+    <button id="shx" onclick="closeSh()">×</button>
+  </div>
+  <div id="flt">
+    <div class="ft on" id="ft-all" onclick="setFlt('all')">전체</div>
+    <div class="ft" id="ft-todo" onclick="setFlt('todo')">미할당</div>
+    <div class="ft" id="ft-w1" onclick="setFlt('w1')">🔵</div>
+    <div class="ft" id="ft-w2" onclick="setFlt('w2')">🟠</div>
+    <div class="ft" id="ft-w3" onclick="setFlt('w3')">🟣</div>
+    <div class="ft" id="ft-done" onclick="setFlt('done')">✅</div>
+  </div>
+  <input id="s2" type="search" placeholder="검색..." oninput="srch(this.value)">
+  <div id="shl"></div>
+</div>
+
+<!-- 담당자 이름 설정 -->
+<div id="settingPop">
+  <div id="settingBox">
+    <h3>⚙ 담당자 이름 설정</h3>
+    <div class="wrow"><div class="wdot" style="background:#3b82f6"></div><input class="winput" id="wn1" placeholder="담당자1"></div>
+    <div class="wrow"><div class="wdot" style="background:#f97316"></div><input class="winput" id="wn2" placeholder="담당자2"></div>
+    <div class="wrow"><div class="wdot" style="background:#a855f7"></div><input class="winput" id="wn3" placeholder="담당자3"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="saveWorkerNames()" style="flex:1;padding:10px;background:#FFEB00;color:#1a0a00;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">저장</button>
+      <button onclick="document.getElementById('settingPop').style.display='none'" style="flex:1;padding:10px;background:#f0f0f0;color:#666;border:none;border-radius:10px;font-size:14px;cursor:pointer">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var DALL=[["0",0.0,0.0],["CP22-001",37.6366089386156,126.64362662619],["CP22-002",37.6369543434649,126.642862469659],["CP22-003",37.6380935699905,126.631203488503],["CP22-004",37.6396836832092,126.630731255295],["CP22-005",37.6441597311515,126.631918868176],["CP22-006",37.6447575890555,126.634321982105],["CP22-007",37.6512427339785,126.627590916883],["CP22-008",37.6515841736693,126.629217145128],["CP22-009",37.644828757603,126.618238189776],["CP22-010",37.6458994401494,126.618108726323],["CP22-011",37.645403810464,126.625942982895],["CP22-012",37.6449081394537,126.625923905967],["CP22-013",37.6423899897617,126.622506035847],["CP22-014",37.641950934195,126.621058875042],["CP22-015",37.6494299883723,126.702313961375],["CP22-016",37.6490900033996,126.703021723567],["CP22-017",37.6623218496121,126.671073834388],["CP22-018",37.6629288438512,126.670930528904],["CP22-019",37.6683995403383,126.660500248096],["CP22-020",37.6686824484711,126.659881582797],["CP22-021",37.7020108265394,126.660838762275],["CP22-022",37.7028698389845,126.659488127437],["CP22-023",37.7026821483728,126.655523845551],["CP22-024",37.7023115737627,126.655417210831],["CP22-025",37.7076656714883,126.64509267298],["CP22-026",37.7079077529773,126.646637501938],["CP22-027",37.7093541513448,126.63299953255],["CP22-028",37.709150349215,126.632336363451],["CP22-029",37.7289721644518,126.628159523217],["CP22-030",37.7280187643612,126.629184307798],["CP22-031",37.7349608155297,126.626538967418],["CP22-032",37.7358708870698,126.625303191645],["CP22-033",37.7456223846832,126.617102911904],["CP22-034",37.746052145515,126.61628601553],["CP22-035",37.7379062773651,126.62980067345],["CP22-036",37.7383816331055,126.62997209003],["CP22-037",37.7431519914214,126.635877962194],["CP22-038",37.7426046817414,126.63681217182],["CP22-039",37.7453945377038,126.637342552419],["CP22-040",37.7453033114905,126.639473550436],["CP22-041",37.7491749419615,126.650177167918],["CP22-042",37.7499331921798,126.651079620607],["CP22-043",37.7547814883275,126.651315917899],["CP22-044",37.7557899931798,126.650289162648],["CP22-045",37.7088760269156,126.620732554572],["CP22-046",37.7083366950825,126.62118574709],["CP22-047",37.7112856698688,126.620329907328],["CP22-048",37.7118087893909,126.618738158507],["CP22-049",37.7386231987578,126.594134832334],["CP22-050",37.7391853567765,126.593920799557],["CP22-051",37.7282576893416,126.615573195532],["CP22-052",37.7283924775268,126.616428992621],["CP22-053",37.7302105810232,126.599037989757],["CP22-054",37.729802964622,126.598902429136],["CP22-055",37.7248065101182,126.600846759689],["CP22-056",37.7242542266603,126.600102317076],["CP22-057",37.723677013716,126.586757801489],["CP22-058",37.7236541364002,126.5860895538],["CP22-059",37.7241829364626,126.578140489687],["CP22-060",37.7242377334765,126.577250215668],["CP22-061",37.7281902850784,126.574819887412],["CP22-062",37.728256411848,126.573270315865],["CP22-063",37.7183381406119,126.560111213156],["CP22-064",37.7182113684852,126.561311296214],["CP22-065",37.7156333837628,126.572064303174],["CP22-066",37.7161809930878,126.57283745607],["CP22-067",37.7167680109084,126.581832586184],["CP22-068",37.7167287553345,126.582244172009],["CP22-069",37.7088589224295,126.565893350121],["CP22-070",37.7083092035646,126.566713228481],["CP22-071",37.7562848392896,126.53111307141],["CP22-072",37.7552106525481,126.531915442482],["CP22-073",37.7489032915195,126.53363093724],["CP22-074",37.7475628747576,126.532758741213],["CP22-075",37.7315513776277,126.528507169695],["CP22-076",37.730429812028,126.529627597324],["CP22-077",37.7196955947117,126.532223276205],["CP22-078",37.7201998046571,126.531028896402],["CP22-079",37.7142861216733,126.541638404688],["CP22-080",37.7145185750814,126.540435975675],["CP22-081",37.7108234657499,126.53397137701],["CP22-082",37.7107910935296,126.533299307061],["CP22-083",37.7048907526953,126.530919870901],["CP22-084",37.7036531173163,126.531385682503],["CP22-085",37.6955059576989,126.545971806625],["CP22-086",37.6949675124864,126.545247220286],["CP22-087",37.6855156235074,126.558586798104],["CP22-088",37.6856819445575,126.559471572948],["CP22-089",37.6906157090491,126.571679371843],["CP22-090",37.6923219716047,126.570202371791],["CP22-091",37.6907814062916,126.574281870384],["CP22-092",37.6916033536164,126.574904010805],["CP22-093",37.7051289548998,126.559724739695],["CP22-094",37.707304916807,126.559070958929],["CP22-095",37.7203996345357,126.557562295262],["CP22-096",37.7203152339056,126.556596332492],["CP22-097",37.7278398994923,126.558724874038],["CP22-098",37.7288430808676,126.559026525405],["CP22-099",37.7396941253319,126.559133102375],["CP22-100",37.7410606250287,126.559994104729],["CP22-101",37.7498518931949,126.560003224919],["CP22-102",37.7511247878961,126.559966730157],["CP22-103",37.7106590777108,126.600106627769],["CP22-104",37.7099370874055,126.600008554493],["CP22-105",37.7084291664001,126.597605172438],["CP22-106",37.7079366675917,126.597364322664],["CP22-107",37.7026771221441,126.594851351585],["CP22-108",37.7017666227064,126.593684202716],["CP22-109",37.6292929737032,126.607916889159],["CP22-110",37.6297366162207,126.608467537716],["CP22-111",37.6246105363195,126.611539392207],["CP22-112",37.6239564461667,126.612006323334],["CP22-113",37.6179499457264,126.608703853204],["CP22-114",37.617998090437,126.607929100932],["CP22-115",37.602279546847,126.594425495194],["CP22-116",37.6012778093626,126.594484451507],["CP22-117",37.6053534984234,126.583968456735],["CP22-118",37.6047752332693,126.583295489132],["CP22-119",37.7331719415162,126.590391807094],["CP22-120",37.7337325098451,126.589800253805]];
+var W=window.innerWidth,H=window.innerHeight;
+var Z=13,CX=0,CY=0,shOn=false,TC={};
+var curFlt='all',curPop=null,selMode=false;
+var selSet=new Set();
+var addrCache={};
+var R=Math.PI/180;
+var LS_KEY='fm_'+PROJ_ID;
+var localState=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(localState));}catch(e){}}
+function getState(nm){return fbState[nm]||localState[nm]||{};}
+function isDone(nm){return !!(getState(nm).done);}
+function getWorker(nm){return getState(nm).worker||0;}
+
+function setFbStatus(nm,data){
+  localState[nm]=Object.assign(localState[nm]||{},data);
+  saveLocal();
+  if(db){
+    var el=document.getElementById('syncing');el.style.display='block';
+    db.ref('projects/'+PROJ_ID+'/status/'+nm).update(data).then(function(){
+      setTimeout(function(){el.style.display='none';},600);
+    });
+  }
+}
+function setFbStatusBatch(updates){
+  Object.keys(updates).forEach(function(nm){
+    localState[nm]=Object.assign(localState[nm]||{},updates[nm]);
+  });
+  saveLocal();
+  if(db){
+    var el=document.getElementById('syncing');el.style.display='block';
+    db.ref('projects/'+PROJ_ID+'/status').update(updates).then(function(){
+      setTimeout(function(){el.style.display='none';},600);
+    });
+  }
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+// 담당자 이름
+function updateWorkerNames(){
+  ['1','2','3'].forEach(function(i){
+    var n=workerNames[i];
+    document.getElementById('spN'+i).textContent=n;
+    document.getElementById('lgn'+i).textContent=n;
+    document.getElementById('rn'+i).textContent=n;
+    var ft=document.getElementById('ft-w'+i);
+    if(ft)ft.textContent=['🔵','🟠','🟣'][i-1]+n.slice(0,3);
+  });
+}
+function openSetting(){
+  ['1','2','3'].forEach(function(i){document.getElementById('wn'+i).value=workerNames[i]||'담당자'+i;});
+  document.getElementById('settingPop').style.display='flex';
+}
+function saveWorkerNames(){
+  ['1','2','3'].forEach(function(i){workerNames[i]=document.getElementById('wn'+i).value||'담당자'+i;});
+  localStorage.setItem('fm_wnames',JSON.stringify(workerNames));
+  updateWorkerNames();
+  document.getElementById('settingPop').style.display='none';
+  drawMarkers();buildList(getFltList());
+}
+
+// 좌표변환
+function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
+function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
+(function(){var sla=0,sln=0;DALL.forEach(function(d){sla+=d[1];sln+=d[2];});var c=ll2t(sla/DALL.length,sln/DALL.length,Z);CX=c.x;CY=c.y;})();
+function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
+function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
+
+// 타일
+function drawTiles(){
+  var td=document.getElementById('tl'),n=Math.pow(2,Z);
+  var x0=Math.floor(CX-W/512)-1,y0=Math.floor(CY-H/512)-1,x1=Math.ceil(CX+W/512)+1,y1=Math.ceil(CY+H/512)+1;
+  td.querySelectorAll('.tile').forEach(function(t){
+    if(+t.dataset.z!==Z){t.style.display='none';return;}
+    t.style.display='block';var p=p2s(+t.dataset.x,+t.dataset.y);t.style.left=p.x+'px';t.style.top=p.y+'px';
+  });
+  for(var tx=x0;tx<=x1;tx++){for(var ty=y0;ty<=y1;ty++){
+    if(ty<0||ty>=n)continue;
+    var ntx=((tx%n)+n)%n,k=Z+','+tx+','+ty;
+    if(TC[k])continue;TC[k]=1;
+    var img=new Image();img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;img.dataset.ntx=ntx;img.dataset.ty2=ty;img.dataset.tz=Z;
+    img.onerror=function(){if(this.dataset.tried)return;this.dataset.tried=1;this.src='https://a.tile.openstreetmap.org/'+this.dataset.tz+'/'+this.dataset.ntx+'/'+this.dataset.ty2+'.png';};
+    img.src='https://map'+(Math.abs(tx+ty)%3+1)+'.daumcdn.net/map_2d_png/1906/L'+Z+'/'+ty+'/'+ntx+'.png';
+    var p=p2s(tx,ty);img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
+    td.appendChild(img);
+  }}
+}
+
+// 클러스터
+function cluster(pts){
+  var cell=44,g={};
+  pts.forEach(function(d){
+    var t=ll2t(d[1],d[2],Z),x=(t.x-CX)*256+W/2,y=(t.y-CY)*256+H/2;
+    if(x<-80||x>W+80||y<-80||y>H+80)return;
+    if(selMode){g[d[0]]={p:[d],la:d[1],ln:d[2],x:x,y:y};return;}
+    var k=Math.floor(x/cell)+','+Math.floor(y/cell);
+    if(!g[k])g[k]={p:[],la:0,ln:0,x:0,y:0};
+    g[k].p.push(d);g[k].la+=d[1];g[k].ln+=d[2];g[k].x+=x;g[k].y+=y;
+  });
+  return Object.keys(g).map(function(k){var c=g[k],n=c.p.length;return{pts:c.p,la:n>1?c.la/n:c.la,ln:n>1?c.ln/n:c.ln,x:n>1?c.x/n:c.x,y:n>1?c.y/n:c.y};});
+}
+
+function getDotCls(nm){
+  if(selSet.has(nm))return'dot dsel';
+  if(isDone(nm))return'dot dd';
+  var w=getWorker(nm);if(w===1)return'dot dw1';if(w===2)return'dot dw2';if(w===3)return'dot dw3';return'dot dt';
+}
+
+// 마커 렌더 - 기본은 점만, 선택모드/zoom16+에서 라벨
+function drawMarkers(){
+  var md=document.getElementById('mk');md.innerHTML='';
+  var showLabel=!selMode&&Z>=16; // 선택모드에서는 점만 표시
+  cluster(DALL).forEach(function(g){
+    var div=document.createElement('div');div.className='m'+(selMode?' noptr':'');
+    div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
+    if(g.pts.length===1){
+      var nm=g.pts[0][0];
+      var dotHtml='<div class="'+getDotCls(nm)+'"></div>';
+      if(showLabel){
+        var lc=selSet.has(nm)?'mlb msel':isDone(nm)?'mlb md':getWorker(nm)===1?'mlb mw1':getWorker(nm)===2?'mlb mw2':getWorker(nm)===3?'mlb mw3':'mlb mt';
+        dotHtml+='<span class="'+lc+'" style="font-size:14px;font-weight:800">'+nm+'</span>';
+      }
+      div.innerHTML=dotHtml;
+      if(!selMode)(function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
+    }else{
+      var dn=g.pts.filter(function(p){return isDone(p[0]);}).length;
+      var w1=g.pts.filter(function(p){return getWorker(p[0])===1&&!isDone(p[0]);}).length;
+      var w2=g.pts.filter(function(p){return getWorker(p[0])===2&&!isDone(p[0]);}).length;
+      var w3=g.pts.filter(function(p){return getWorker(p[0])===3&&!isDone(p[0]);}).length;
+      var bg=dn===g.pts.length?'#2dc653':w1>w2&&w1>w3?'rgba(59,130,246,.85)':w2>w1&&w2>w3?'rgba(249,115,22,.85)':w3>w1&&w3>w2?'rgba(168,85,247,.85)':'rgba(255,235,0,.92)';
+      var fc=dn===g.pts.length||w1>0||w2>0||w3>0?'#fff':'#1a0a00';
+      div.innerHTML='<div class="cl" style="background:'+bg+';color:'+fc+'">'+g.pts.length+'</div>';
+      if(!selMode)(function(la,ln){div.onclick=function(){var nz=Math.min(Z+2,18),f=Math.pow(2,nz-Z);var c=ll2t(la,ln,nz);CX=c.x;CY=c.y;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();};})(g.la,g.ln);
+    }
+    md.appendChild(div);
+  });
+}
+function updateStats(){
+  var w1=0,w2=0,w3=0,dn=0;
+  DALL.forEach(function(d){if(isDone(d[0]))dn++;else{var w=getWorker(d[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;}});
+  document.getElementById('cnt').textContent=DALL.length+'개';
+  document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
+  document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
+}
+function draw(){drawTiles();drawMarkers();updateStats();}
+
+// 모드전환
+function toggleMode(){
+  selMode=!selMode;
+  var btn=document.getElementById('modeBtn'),m=document.getElementById('map');
+  var rb=document.getElementById('resetBar');
+  if(selMode){
+    btn.textContent='🖐 이동모드';btn.className='tbtn tbtn-a';m.className='map sel';
+    if(rb)rb.style.display='block';
+    clearSel();
+  }else{
+    btn.textContent='⬜ 범위선택';btn.className='tbtn tbtn-n';m.className='map pan';
+    if(rb)rb.style.display='none';
+    clearSel();
+  }
+  drawMarkers();
+}
+
+// ── 자유 폴리곤 (라쏘) 선택 ──────────────────────────────────
+// PC: 박스 선택 / 모바일: 라쏘 선택
+var isMobileDevice=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+var lassoPath=[];
+var lassoCanvas=document.getElementById('lassoCanvas');
+var lassoCtx=lassoCanvas.getContext('2d');
+function resizeCanvas(){lassoCanvas.width=W;lassoCanvas.height=H;}
+resizeCanvas();
+
+// 박스 선택 (PC)
+var boxStart=null,boxEnd=null;
+function updateBoxRect(){
+  if(!boxStart||!boxEnd)return;
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  var r=document.getElementById('boxRect');
+  r.style.cssText='display:block;left:'+x1+'px;top:'+y1+'px;width:'+(x2-x1)+'px;height:'+(y2-y1)+'px';
+}
+function finishBox(){
+  if(!boxStart||!boxEnd){boxStart=null;return;}
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  document.getElementById('boxRect').style.display='none';
+  if(x2-x1<5&&y2-y1<5){boxStart=null;return;}
+  // 박스 → 위경도 변환
+  var tl1=s2t(x1,y1),tl2=s2t(x2,y2);
+  var ll1=t2ll(tl1.x,tl1.y,Z),ll2=t2ll(tl2.x,tl2.y,Z);
+  var mla=Math.min(ll1.la,ll2.la),xla=Math.max(ll1.la,ll2.la);
+  var mln=Math.min(ll1.ln,ll2.ln),xln=Math.max(ll1.ln,ll2.ln);
+  selSet=new Set();
+  DALL.forEach(function(d){if(d[1]>=mla&&d[1]<=xla&&d[2]>=mln&&d[2]<=xln)selSet.add(d[0]);});
+  boxStart=null;
+  updateSelPanel();drawMarkers();
+}
+
+// 라쏘 선택 (모바일)
+function drawLasso(){
+  lassoCtx.clearRect(0,0,W,H);
+  if(lassoPath.length<2)return;
+  lassoCtx.beginPath();
+  lassoCtx.moveTo(lassoPath[0].x,lassoPath[0].y);
+  for(var i=1;i<lassoPath.length;i++)lassoCtx.lineTo(lassoPath[i].x,lassoPath[i].y);
+  lassoCtx.closePath();
+  lassoCtx.fillStyle='rgba(168,85,247,.12)';lassoCtx.fill();
+  lassoCtx.strokeStyle='#a855f7';lassoCtx.lineWidth=2;lassoCtx.setLineDash([6,3]);lassoCtx.stroke();
+}
+function pointInPoly(px,py,poly){
+  var inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }return inside;
+}
+function finishLasso(){
+  if(lassoPath.length<3){lassoPath=[];lassoCtx.clearRect(0,0,W,H);return;}
+  selSet=new Set();
+  DALL.forEach(function(d){
+    var t=ll2t(d[1],d[2],Z),px=(t.x-CX)*256+W/2,py=(t.y-CY)*256+H/2;
+    if(pointInPoly(px,py,lassoPath))selSet.add(d[0]);
+  });
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  updateSelPanel();drawMarkers();
+}
+
+function updateSelPanel(){
+  document.getElementById('spCnt').textContent=selSet.size+'개 선택됨';
+  document.getElementById('selPanel').style.display=selSet.size>0?'block':'none';
+  document.getElementById('restRow').style.display=selSet.size>0?'flex':'none';
+}
+
+function assignW(w){var upd={};selSet.forEach(function(nm){upd[nm]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function assignRest(w){var upd={};DALL.forEach(function(d){if(!selSet.has(d[0]))upd[d[0]]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function invertSel(){var ns=new Set();DALL.forEach(function(d){if(!selSet.has(d[0]))ns.add(d[0]);});selSet=ns;updateSelPanel();drawMarkers();}
+function clearSel(){
+  selSet=new Set();
+  document.getElementById('selPanel').style.display='none';
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  document.getElementById('boxRect').style.display='none';boxStart=null;
+  drawMarkers();
+}
+function clearAssign(){var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});setFbStatusBatch(upd);clearSel();}
+function resetAllAssign(){
+  if(!confirm('모든 담당자 배분을 초기화할까요?\n완료 처리는 유지됩니다.'))return;
+  var upd={};DALL.forEach(function(d){upd[d[0]]={worker:0};});
+  setFbStatusBatch(upd);clearSel();
+}
+
+// 드래그/터치
+var dr={on:0,sx:0,sy:0,cx:0,cy:0},tp={on:0,sx:0,sy:0,cx:0,cy:0,pd:0};
+var isDrawing=false;
+var mapEl=document.getElementById('map');
+function getXY(e){var t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
+
+// PC 이벤트 (박스 선택)
+mapEl.addEventListener('mousedown',function(e){
+  if(e.button!==0)return; // 왼쪽 클릭만
+  if(selMode){
+    e.preventDefault();
+    boxStart={x:e.clientX,y:e.clientY};
+    boxEnd={x:e.clientX,y:e.clientY};
+    isDrawing=true;
+  }else{
+    dr={on:1,sx:e.clientX,sy:e.clientY,cx:CX,cy:CY};
+    mapEl.classList.add('gr');
+  }
+});
+document.addEventListener('mousemove',function(e){
+  if(selMode&&isDrawing){
+    boxEnd={x:e.clientX,y:e.clientY};
+    updateBoxRect();
+  }else if(!selMode&&dr.on){
+    CX=dr.cx-(e.clientX-dr.sx)/256;
+    CY=dr.cy-(e.clientY-dr.sy)/256;
+    draw();
+  }
+});
+document.addEventListener('mouseup',function(e){
+  if(selMode&&isDrawing){
+    isDrawing=false;
+    finishBox();
+  }
+  dr.on=0;
+  mapEl.classList.remove('gr');
+});
+
+// 모바일 이벤트 (라쏘 선택)
+mapEl.addEventListener('touchstart',function(e){
+  if(e.touches.length===2){tp.on=0;tp.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+  else if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
+  else{tp={on:1,sx:e.touches[0].clientX,sy:e.touches[0].clientY,cx:CX,cy:CY,pd:0};}
+},{passive:true});
+mapEl.addEventListener('touchmove',function(e){
+  if(e.touches.length===2&&tp.pd){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(Math.abs(d-tp.pd)>25){dz(d>tp.pd?1:-1);tp.pd=d;}}
+  else if(selMode&&isDrawing&&e.touches.length===1){lassoPath.push(getXY(e));drawLasso();}
+  else if(tp.on&&e.touches.length===1){CX=tp.cx-(e.touches[0].clientX-tp.sx)/256;CY=tp.cy-(e.touches[0].clientY-tp.sy)/256;draw();}
+},{passive:true});
+mapEl.addEventListener('touchend',function(){
+  if(selMode&&isDrawing){isDrawing=false;lassoCanvas.style.display='none';finishLasso();}
+  tp.on=0;
+},{passive:true});
+mapEl.addEventListener('wheel',function(e){e.preventDefault();dz(e.deltaY<0?1:-1);},{passive:false});
+mapEl.onclick=function(e){
+  if(selMode)return; // 선택모드에서는 팝업 닫기 안 함
+  cPop();
+};
+
+function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();}
+
+// 주소
+function getAddr(la,ln,cb){
+  var k=la.toFixed(5)+','+ln.toFixed(5);if(addrCache[k]){cb(addrCache[k]);return;}
+  fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18')
+    .then(function(r){return r.json();}).then(function(d){
+      var addr='주소 없음';
+      if(d&&d.address){var a=d.address,p=[];
+        if(a.province||a.state)p.push(a.province||a.state);
+        if(a.city||a.county||a.town)p.push(a.city||a.county||a.town);
+        if(a.suburb||a.quarter||a.neighbourhood||a.village)p.push(a.suburb||a.quarter||a.neighbourhood||a.village);
+        if(a.road)p.push(a.road);if(a.house_number)p.push(a.house_number);
+        addr=p.length?p.join(' '):(d.display_name||'주소 없음');}
+      addrCache[k]=addr;cb(addr);
+    }).catch(function(){cb('주소 조회 실패');});
+}
+
+// 팝업
+function sPop(d,x,y){
+  if(selMode)return;curPop=d;
+  var nm=d[0],la=d[1],ln=d[2],dn=isDone(nm),w=getWorker(nm);
+  document.getElementById('pn').textContent=nm;
+  document.getElementById('pc').textContent=la.toFixed(6)+' / '+ln.toFixed(6);
+  document.getElementById('pa').textContent='주소 조회 중...';document.getElementById('pa').className='paddr ld';
+  var pst=document.getElementById('pst');
+  if(dn){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=dn?'none':'block';
+  document.getElementById('pud').style.display=dn?'block':'none';
+  document.getElementById('pk').href='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+  // 담당자 버튼 이름 업데이트
+  document.getElementById('pw1').textContent=workerNames['1'];
+  document.getElementById('pw2').textContent=workerNames['2'];
+  document.getElementById('pw3').textContent=workerNames['3'];
+  getAddr(la,ln,function(addr){var pa=document.getElementById('pa');if(pa){pa.textContent=addr;pa.className='paddr';}});
+  var pop=document.getElementById('pop');
+  pop.style.left=Math.min(x+14,W-265)+'px';pop.style.top=Math.max(Math.min(y-130,H-270),58)+'px';pop.style.display='block';
+}
+function cPop(){document.getElementById('pop').style.display='none';curPop=null;}
+function changeWorker(w){
+  if(!curPop)return;
+  var nm=curPop[0];
+  setFbStatus(nm,{worker:w});
+  var pst=document.getElementById('pst');
+  if(w===0){pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+function toggleDone(){
+  if(!curPop)return;var nm=curPop[0],done=!isDone(nm);
+  setFbStatus(nm,{done:done,doneAt:done?Date.now():null});
+  var pst=document.getElementById('pst'),w=getWorker(nm);
+  if(done){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=done?'none':'block';
+  document.getElementById('pud').style.display=done?'block':'none';
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+// 목록
+function srch(q){q=q.trim().toUpperCase();document.getElementById('si').value=q;document.getElementById('s2').value=q;buildList(getFltList(q));if(!shOn)openSh();}
+function setFlt(f){curFlt=f;['all','todo','w1','w2','w3','done'].forEach(function(t){document.getElementById('ft-'+t).className='ft'+(t===f?' on':'');});buildList(getFltList());}
+function getFltList(q){
+  var base=DALL;
+  if(curFlt==='todo')base=DALL.filter(function(d){return!isDone(d[0])&&!getWorker(d[0]);});
+  else if(curFlt==='w1')base=DALL.filter(function(d){return getWorker(d[0])===1&&!isDone(d[0]);});
+  else if(curFlt==='w2')base=DALL.filter(function(d){return getWorker(d[0])===2&&!isDone(d[0]);});
+  else if(curFlt==='w3')base=DALL.filter(function(d){return getWorker(d[0])===3&&!isDone(d[0]);});
+  else if(curFlt==='done')base=DALL.filter(function(d){return isDone(d[0]);});
+  if(q){var qu=q.toUpperCase();base=base.filter(function(d){return d[0].toUpperCase().indexOf(qu)>=0;});}
+  return base;
+}
+function buildList(d){
+  var w1=0,w2=0,w3=0,dn=0,td=0;
+  DALL.forEach(function(x){if(isDone(x[0]))dn++;else{var w=getWorker(x[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;else td++;}});
+  document.getElementById('shc').textContent='미할당 '+td+' | '+workerNames['1']+' '+w1+' | '+workerNames['2']+' '+w2+' | '+workerNames['3']+' '+w3+' | 완료 '+dn;
+  var h='';
+  for(var i=0;i<Math.min(d.length,500);i++){
+    var nm=d[i][0],dn2=isDone(nm),ww=getWorker(nm);
+    var cls=dn2?'ld2':ww===1?'lw1':ww===2?'lw2':ww===3?'lw3':'lt';
+    var tag=dn2?'✅':ww===1?'🔵':ww===2?'🟠':ww===3?'🟣':'';
+    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+nm.replace(/'/g,"\\'")+'\')"><div class="lnum '+cls+'">'+nm+'</div><div style="flex:1"><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div>'+(tag?'<span style="font-size:12px;margin-left:auto">'+tag+'</span>':'')+'</div>';
+  }
+  if(d.length>500)h+='<div style="padding:12px;text-align:center;font-size:11px;color:#ccc">검색으로 더 찾아보세요 ('+d.length+'개)</div>';
+  document.getElementById('shl').innerHTML=h;
+}
+function flyTo(la,ln,nm){
+  cPop();
+  if(Z<16){var nz=17,f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';}
+  var c=ll2t(la,ln,Z);CX=c.x;CY=c.y;draw();
+  if(nm)setTimeout(function(){var d=DALL.find(function(x){return x[0]===nm;});if(d){var t=ll2t(d[1],d[2],Z);sPop(d,(t.x-CX)*256+W/2,(t.y-CY)*256+H/2);}},300);
+}
+function togSh(){shOn?closeSh():openSh();}
+function openSh(){shOn=true;document.getElementById('sh').classList.add('on');}
+function closeSh(){shOn=false;document.getElementById('sh').classList.remove('on');}
+var sx2=0;
+document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.touches[0].clientX;},{passive:true});
+document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
+window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;resizeCanvas();draw();});
+updateWorkerNames();
+draw();buildList(DALL);
+setTimeout(fbLoad,500);
+</script></body></html>
