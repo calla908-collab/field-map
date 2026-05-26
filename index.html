@@ -113,6 +113,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
 <canvas id="lassoCanvas"></canvas>
+<div id="boxRect" style="display:none;position:fixed;z-index:250;border:2px solid #3b82f6;background:rgba(59,130,246,.1);pointer-events:none"></div>
 
 <div id="selPanel">
   <div class="sp-cnt" id="spCnt">0개 선택됨</div>
@@ -146,6 +147,12 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <div class="paddr ld" id="pa">주소 조회 중...</div>
   <div class="pbtns">
     <a class="pbtn pbtn-k" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+    <div style="display:flex;gap:5px;margin-bottom:0">
+      <button onclick="event.stopPropagation();changeWorker(1)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#3b82f6;color:#fff">🔵 <span id="pw1">담당1</span></button>
+      <button onclick="event.stopPropagation();changeWorker(2)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#f97316;color:#fff">🟠 <span id="pw2">담당2</span></button>
+      <button onclick="event.stopPropagation();changeWorker(3)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#a855f7;color:#fff">🟣 <span id="pw3">담당3</span></button>
+      <button onclick="event.stopPropagation();changeWorker(0)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#e5e7eb;color:#666">해제</button>
+    </div>
     <button class="pbtn pbtn-done" id="pdn" onclick="event.stopPropagation();toggleDone()">✅ 완료 처리</button>
     <button class="pbtn pbtn-undo" id="pud" onclick="event.stopPropagation();toggleDone()" style="display:none">↩ 완료 취소</button>
   </div>
@@ -370,12 +377,41 @@ function toggleMode(){
 }
 
 // ── 자유 폴리곤 (라쏘) 선택 ──────────────────────────────────
+// PC: 박스 선택 / 모바일: 라쏘 선택
+var isMobileDevice=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 var lassoPath=[];
 var lassoCanvas=document.getElementById('lassoCanvas');
 var lassoCtx=lassoCanvas.getContext('2d');
 function resizeCanvas(){lassoCanvas.width=W;lassoCanvas.height=H;}
 resizeCanvas();
 
+// 박스 선택 (PC)
+var boxStart=null,boxEnd=null;
+function updateBoxRect(){
+  if(!boxStart||!boxEnd)return;
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  var r=document.getElementById('boxRect');
+  r.style.cssText='display:block;left:'+x1+'px;top:'+y1+'px;width:'+(x2-x1)+'px;height:'+(y2-y1)+'px';
+}
+function finishBox(){
+  if(!boxStart||!boxEnd){boxStart=null;return;}
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  document.getElementById('boxRect').style.display='none';
+  if(x2-x1<5&&y2-y1<5){boxStart=null;return;}
+  // 박스 → 위경도 변환
+  var tl1=s2t(x1,y1),tl2=s2t(x2,y2);
+  var ll1=t2ll(tl1.x,tl1.y,Z),ll2=t2ll(tl2.x,tl2.y,Z);
+  var mla=Math.min(ll1.la,ll2.la),xla=Math.max(ll1.la,ll2.la);
+  var mln=Math.min(ll1.ln,ll2.ln),xln=Math.max(ll1.ln,ll2.ln);
+  selSet=new Set();
+  DALL.forEach(function(d){if(d[1]>=mla&&d[1]<=xla&&d[2]>=mln&&d[2]<=xln)selSet.add(d[0]);});
+  boxStart=null;
+  updateSelPanel();drawMarkers();
+}
+
+// 라쏘 선택 (모바일)
 function drawLasso(){
   lassoCtx.clearRect(0,0,W,H);
   if(lassoPath.length<2)return;
@@ -383,24 +419,16 @@ function drawLasso(){
   lassoCtx.moveTo(lassoPath[0].x,lassoPath[0].y);
   for(var i=1;i<lassoPath.length;i++)lassoCtx.lineTo(lassoPath[i].x,lassoPath[i].y);
   lassoCtx.closePath();
-  lassoCtx.fillStyle='rgba(168,85,247,.12)';
-  lassoCtx.fill();
-  lassoCtx.strokeStyle='#a855f7';
-  lassoCtx.lineWidth=2;
-  lassoCtx.setLineDash([6,3]);
-  lassoCtx.stroke();
+  lassoCtx.fillStyle='rgba(168,85,247,.12)';lassoCtx.fill();
+  lassoCtx.strokeStyle='#a855f7';lassoCtx.lineWidth=2;lassoCtx.setLineDash([6,3]);lassoCtx.stroke();
 }
-
-// 폴리곤 내부 점 판별 (ray casting)
 function pointInPoly(px,py,poly){
   var inside=false;
   for(var i=0,j=poly.length-1;i<poly.length;j=i++){
     var xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
     if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
-  }
-  return inside;
+  }return inside;
 }
-
 function finishLasso(){
   if(lassoPath.length<3){lassoPath=[];lassoCtx.clearRect(0,0,W,H);return;}
   selSet=new Set();
@@ -418,59 +446,44 @@ function updateSelPanel(){
   document.getElementById('restRow').style.display=selSet.size>0?'flex':'none';
 }
 
-// 선택 액션
-function assignW(w){
-  var upd={};selSet.forEach(function(nm){upd[nm]={worker:w};});
-  setFbStatusBatch(upd);clearSel();
-}
-function assignRest(w){
-  var upd={};
-  DALL.forEach(function(d){if(!selSet.has(d[0]))upd[d[0]]={worker:w};});
-  setFbStatusBatch(upd);clearSel();
-}
-function invertSel(){
-  var newSel=new Set();
-  DALL.forEach(function(d){if(!selSet.has(d[0]))newSel.add(d[0]);});
-  selSet=newSel;updateSelPanel();drawMarkers();
-}
+function assignW(w){var upd={};selSet.forEach(function(nm){upd[nm]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function assignRest(w){var upd={};DALL.forEach(function(d){if(!selSet.has(d[0]))upd[d[0]]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function invertSel(){var ns=new Set();DALL.forEach(function(d){if(!selSet.has(d[0]))ns.add(d[0]);});selSet=ns;updateSelPanel();drawMarkers();}
 function clearSel(){
   selSet=new Set();
   document.getElementById('selPanel').style.display='none';
   lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  document.getElementById('boxRect').style.display='none';boxStart=null;
   drawMarkers();
 }
-function clearAssign(){
-  var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});
-  setFbStatusBatch(upd);clearSel();
-}
-
+function clearAssign(){var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});setFbStatusBatch(upd);clearSel();}
 function resetAllAssign(){
   if(!confirm('모든 담당자 배분을 초기화할까요?\n완료 처리는 유지됩니다.'))return;
-  var upd={};
-  DALL.forEach(function(d){upd[d[0]]={worker:0};});
-  setFbStatusBatch(upd);
-  clearSel();
+  var upd={};DALL.forEach(function(d){upd[d[0]]={worker:0};});
+  setFbStatusBatch(upd);clearSel();
 }
 
 // 드래그/터치
 var dr={on:0,sx:0,sy:0,cx:0,cy:0},tp={on:0,sx:0,sy:0,cx:0,cy:0,pd:0};
 var isDrawing=false;
 var mapEl=document.getElementById('map');
-function getXY(e){var cx=e.touches?e.touches[0].clientX:e.clientX,cy=e.touches?e.touches[0].clientY:e.clientY;return{x:cx,y:cy};}
+function getXY(e){var t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
 
+// PC 이벤트 (박스 선택)
 mapEl.addEventListener('mousedown',function(e){
-  if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
+  if(selMode){boxStart=getXY(e);boxEnd=boxStart;isDrawing=true;}
   else{dr={on:1,sx:e.clientX,sy:e.clientY,cx:CX,cy:CY};mapEl.classList.add('gr');}
 });
 document.addEventListener('mousemove',function(e){
-  if(selMode&&isDrawing){lassoPath.push(getXY(e));drawLasso();}
+  if(selMode&&isDrawing){boxEnd=getXY(e);updateBoxRect();}
   else if(dr.on){CX=dr.cx-(e.clientX-dr.sx)/256;CY=dr.cy-(e.clientY-dr.sy)/256;draw();}
 });
 document.addEventListener('mouseup',function(){
-  if(selMode&&isDrawing){isDrawing=false;lassoCanvas.style.display='none';finishLasso();}
+  if(selMode&&isDrawing){isDrawing=false;finishBox();}
   dr.on=0;mapEl.classList.remove('gr');
 });
 
+// 모바일 이벤트 (라쏘 선택)
 mapEl.addEventListener('touchstart',function(e){
   if(e.touches.length===2){tp.on=0;tp.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
   else if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
@@ -522,11 +535,27 @@ function sPop(d,x,y){
   document.getElementById('pdn').style.display=dn?'none':'block';
   document.getElementById('pud').style.display=dn?'block':'none';
   document.getElementById('pk').href='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+  // 담당자 버튼 이름 업데이트
+  document.getElementById('pw1').textContent=workerNames['1'];
+  document.getElementById('pw2').textContent=workerNames['2'];
+  document.getElementById('pw3').textContent=workerNames['3'];
   getAddr(la,ln,function(addr){var pa=document.getElementById('pa');if(pa){pa.textContent=addr;pa.className='paddr';}});
   var pop=document.getElementById('pop');
   pop.style.left=Math.min(x+14,W-265)+'px';pop.style.top=Math.max(Math.min(y-130,H-270),58)+'px';pop.style.display='block';
 }
 function cPop(){document.getElementById('pop').style.display='none';curPop=null;}
+function changeWorker(w){
+  if(!curPop)return;
+  var nm=curPop[0];
+  setFbStatus(nm,{worker:w});
+  var pst=document.getElementById('pst');
+  if(w===0){pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
 function toggleDone(){
   if(!curPop)return;var nm=curPop[0],done=!isDone(nm);
   setFbStatus(nm,{done:done,doneAt:done?Date.now():null});
