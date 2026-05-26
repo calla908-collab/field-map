@@ -2,7 +2,7 @@
 <html lang="ko"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>김포시기준점</title>
+<title></title>
 <script>
 var db=null,fbState={},PROJ_ID='p640b9dc9';
 var workerNames=JSON.parse(localStorage.getItem('fm_wnames')||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
@@ -107,11 +107,16 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .wdot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
 .winput{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;outline:none}
+@keyframes sp{to{transform:rotate(360deg)}}
 #legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
 .lg{display:flex;align-items:center;gap:6px}
 .lgd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 </style>
 
+<div id="loading" style="position:fixed;inset:0;z-index:9999;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:16px;font-family:sans-serif;gap:16px">
+  <div style="width:40px;height:40px;border:4px solid rgba(255,235,0,.3);border-top-color:#FFEB00;border-radius:50%;animation:sp .8s linear infinite"></div>
+  <div>지도 불러오는 중...</div>
+</div>
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
 <canvas id="lassoCanvas"></canvas>
 <div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
@@ -160,7 +165,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <div id="tb">
-  <h1>📍 김포시기준점</h1>
+  <h1 id="projTitle">📍 현장지도</h1>
   <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
@@ -214,16 +219,53 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <script>
-var DALL=[["0",0.0,0.0],["CP22-001",37.6366089386156,126.64362662619],["CP22-002",37.6369543434649,126.642862469659],["CP22-003",37.6380935699905,126.631203488503],["CP22-004",37.6396836832092,126.630731255295],["CP22-005",37.6441597311515,126.631918868176],["CP22-006",37.6447575890555,126.634321982105],["CP22-007",37.6512427339785,126.627590916883],["CP22-008",37.6515841736693,126.629217145128],["CP22-009",37.644828757603,126.618238189776],["CP22-010",37.6458994401494,126.618108726323],["CP22-011",37.645403810464,126.625942982895],["CP22-012",37.6449081394537,126.625923905967],["CP22-013",37.6423899897617,126.622506035847],["CP22-014",37.641950934195,126.621058875042],["CP22-015",37.6494299883723,126.702313961375],["CP22-016",37.6490900033996,126.703021723567],["CP22-017",37.6623218496121,126.671073834388],["CP22-018",37.6629288438512,126.670930528904],["CP22-019",37.6683995403383,126.660500248096],["CP22-020",37.6686824484711,126.659881582797],["CP22-021",37.7020108265394,126.660838762275],["CP22-022",37.7028698389845,126.659488127437],["CP22-023",37.7026821483728,126.655523845551],["CP22-024",37.7023115737627,126.655417210831],["CP22-025",37.7076656714883,126.64509267298],["CP22-026",37.7079077529773,126.646637501938],["CP22-027",37.7093541513448,126.63299953255],["CP22-028",37.709150349215,126.632336363451],["CP22-029",37.7289721644518,126.628159523217],["CP22-030",37.7280187643612,126.629184307798],["CP22-031",37.7349608155297,126.626538967418],["CP22-032",37.7358708870698,126.625303191645],["CP22-033",37.7456223846832,126.617102911904],["CP22-034",37.746052145515,126.61628601553],["CP22-035",37.7379062773651,126.62980067345],["CP22-036",37.7383816331055,126.62997209003],["CP22-037",37.7431519914214,126.635877962194],["CP22-038",37.7426046817414,126.63681217182],["CP22-039",37.7453945377038,126.637342552419],["CP22-040",37.7453033114905,126.639473550436],["CP22-041",37.7491749419615,126.650177167918],["CP22-042",37.7499331921798,126.651079620607],["CP22-043",37.7547814883275,126.651315917899],["CP22-044",37.7557899931798,126.650289162648],["CP22-045",37.7088760269156,126.620732554572],["CP22-046",37.7083366950825,126.62118574709],["CP22-047",37.7112856698688,126.620329907328],["CP22-048",37.7118087893909,126.618738158507],["CP22-049",37.7386231987578,126.594134832334],["CP22-050",37.7391853567765,126.593920799557],["CP22-051",37.7282576893416,126.615573195532],["CP22-052",37.7283924775268,126.616428992621],["CP22-053",37.7302105810232,126.599037989757],["CP22-054",37.729802964622,126.598902429136],["CP22-055",37.7248065101182,126.600846759689],["CP22-056",37.7242542266603,126.600102317076],["CP22-057",37.723677013716,126.586757801489],["CP22-058",37.7236541364002,126.5860895538],["CP22-059",37.7241829364626,126.578140489687],["CP22-060",37.7242377334765,126.577250215668],["CP22-061",37.7281902850784,126.574819887412],["CP22-062",37.728256411848,126.573270315865],["CP22-063",37.7183381406119,126.560111213156],["CP22-064",37.7182113684852,126.561311296214],["CP22-065",37.7156333837628,126.572064303174],["CP22-066",37.7161809930878,126.57283745607],["CP22-067",37.7167680109084,126.581832586184],["CP22-068",37.7167287553345,126.582244172009],["CP22-069",37.7088589224295,126.565893350121],["CP22-070",37.7083092035646,126.566713228481],["CP22-071",37.7562848392896,126.53111307141],["CP22-072",37.7552106525481,126.531915442482],["CP22-073",37.7489032915195,126.53363093724],["CP22-074",37.7475628747576,126.532758741213],["CP22-075",37.7315513776277,126.528507169695],["CP22-076",37.730429812028,126.529627597324],["CP22-077",37.7196955947117,126.532223276205],["CP22-078",37.7201998046571,126.531028896402],["CP22-079",37.7142861216733,126.541638404688],["CP22-080",37.7145185750814,126.540435975675],["CP22-081",37.7108234657499,126.53397137701],["CP22-082",37.7107910935296,126.533299307061],["CP22-083",37.7048907526953,126.530919870901],["CP22-084",37.7036531173163,126.531385682503],["CP22-085",37.6955059576989,126.545971806625],["CP22-086",37.6949675124864,126.545247220286],["CP22-087",37.6855156235074,126.558586798104],["CP22-088",37.6856819445575,126.559471572948],["CP22-089",37.6906157090491,126.571679371843],["CP22-090",37.6923219716047,126.570202371791],["CP22-091",37.6907814062916,126.574281870384],["CP22-092",37.6916033536164,126.574904010805],["CP22-093",37.7051289548998,126.559724739695],["CP22-094",37.707304916807,126.559070958929],["CP22-095",37.7203996345357,126.557562295262],["CP22-096",37.7203152339056,126.556596332492],["CP22-097",37.7278398994923,126.558724874038],["CP22-098",37.7288430808676,126.559026525405],["CP22-099",37.7396941253319,126.559133102375],["CP22-100",37.7410606250287,126.559994104729],["CP22-101",37.7498518931949,126.560003224919],["CP22-102",37.7511247878961,126.559966730157],["CP22-103",37.7106590777108,126.600106627769],["CP22-104",37.7099370874055,126.600008554493],["CP22-105",37.7084291664001,126.597605172438],["CP22-106",37.7079366675917,126.597364322664],["CP22-107",37.7026771221441,126.594851351585],["CP22-108",37.7017666227064,126.593684202716],["CP22-109",37.6292929737032,126.607916889159],["CP22-110",37.6297366162207,126.608467537716],["CP22-111",37.6246105363195,126.611539392207],["CP22-112",37.6239564461667,126.612006323334],["CP22-113",37.6179499457264,126.608703853204],["CP22-114",37.617998090437,126.607929100932],["CP22-115",37.602279546847,126.594425495194],["CP22-116",37.6012778093626,126.594484451507],["CP22-117",37.6053534984234,126.583968456735],["CP22-118",37.6047752332693,126.583295489132],["CP22-119",37.7331719415162,126.590391807094],["CP22-120",37.7337325098451,126.589800253805]];
+// URL에서 프로젝트 ID 읽기
+var params=new URLSearchParams(window.location.search);
+PROJ_ID=params.get('p')||PROJ_ID||'';
+var DALL=[];
+var projName='현장지도';
+
+// Firebase에서 포인트 로딩
+function loadPoints(cb){
+  if(!PROJ_ID){
+    document.getElementById('loading').innerHTML='❌ 사업 ID가 없습니다.<br><small>URL에 ?p=사업ID 가 필요해요</small>';
+    return;
+  }
+  db.ref('projects/'+PROJ_ID+'/info').once('value',function(snap){
+    var info=snap.val()||{};
+    projName=info.name||'현장지도';
+    document.title=projName+' - 현장지도';
+    document.getElementById('projTitle').textContent='📍 '+projName;
+  });
+  db.ref('projects/'+PROJ_ID+'/points').once('value',function(snap){
+    var pts=snap.val()||{};
+    DALL=Object.keys(pts).map(function(nm){
+      var d=pts[nm];return[nm,d.la,d.ln];
+    });
+    if(DALL.length===0){
+      document.getElementById('loading').innerHTML='❌ 포인트가 없습니다.';
+      return;
+    }
+    document.getElementById('loading').style.display='none';
+    // 상태 실시간 수신
+    db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap2){
+      fbState=snap2.val()||{};
+      Object.keys(fbState).forEach(function(nm){
+        localState[nm]=Object.assign(localState[nm]||{},fbState[nm]);
+      });
+      drawMarkers();updateStats();buildList(getFltList());
+    });
+    cb();
+  });
+}
 var W=window.innerWidth,H=window.innerHeight;
 var Z=13,CX=0,CY=0,shOn=false,TC={};
 var curFlt='all',curPop=null,selMode=false;
 var selSet=new Set();
 var addrCache={};
 var R=Math.PI/180;
-var LS_KEY='fm_'+PROJ_ID;
-var localState=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
-function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(localState));}catch(e){}}
+var LS_KEY='fm_init'; // 실제 키는 Firebase 로딩 후 설정
+var localState={};
 function getState(nm){return fbState[nm]||localState[nm]||{};}
 function isDone(nm){return !!(getState(nm).done);}
 function getWorker(nm){return getState(nm).worker||0;}
@@ -278,7 +320,7 @@ function saveWorkerNames(){
 // 좌표변환
 function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
 function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
-(function(){var sla=0,sln=0;DALL.forEach(function(d){sla+=d[1];sln+=d[2];});var c=ll2t(sla/DALL.length,sln/DALL.length,Z);CX=c.x;CY=c.y;})();
+// 중심은 Firebase 로딩 후 계산
 function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
 function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
 
@@ -633,6 +675,28 @@ document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.to
 document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
 window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;resizeCanvas();draw();});
 updateWorkerNames();
-draw();buildList(DALL);
-setTimeout(fbLoad,500);
+// Firebase 먼저 로딩 후 지도 초기화
+fbLoad(function(){
+  if(!fbLoaded){
+    document.getElementById('loading').innerHTML='❌ 네트워크 오류<br><small>인터넷 연결을 확인하세요</small>';
+    return;
+  }
+  try{
+    if(!firebase.apps.length)firebase.initializeApp({"apiKey": "AIzaSyDCZils_rrPT3A5c163FM4Ij8ZXQBvPuqE", "databaseURL": "https://landsurvey2027-default-rtdb.firebaseio.com", "projectId": "landsurvey2027"});
+    db=firebase.database();
+    var ls_key='fm_'+PROJ_ID;
+    localState=JSON.parse(localStorage.getItem(ls_key)||'{}');
+    function saveLocal(){try{localStorage.setItem(ls_key,JSON.stringify(localState));}catch(e){}}
+    loadPoints(function(){
+      // 초기 중심 계산
+      var sla=0,sln=0;
+      DALL.forEach(function(d){sla+=d[1];sln+=d[2];});
+      var c=ll2t(sla/DALL.length,sln/DALL.length,Z);CX=c.x;CY=c.y;
+      draw();buildList(DALL);
+    });
+  }catch(e){
+    document.getElementById('loading').innerHTML='❌ 오류: '+e.message;
+    console.error(e);
+  }
+});
 </script></body></html>
