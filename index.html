@@ -3,8 +3,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>MMS측량(광주) - 현장지도</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+// Firebase SDK 동적 로딩 - 실패해도 지도 표시
+var fbLoaded = false;
+function loadFB(cb) {
+  var s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+  s1.onload = function() {
+    var s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
+    s2.onload = function() { fbLoaded = true; cb(); };
+    s2.onerror = function() { cb(); };
+    document.head.appendChild(s2);
+  };
+  s1.onerror = function() { cb(); };
+  document.head.appendChild(s1);
+}
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
@@ -15,10 +30,10 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 #mk{pointer-events:none}
 .tile{position:absolute;width:256px;height:256px}
 .m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;display:flex;align-items:center;gap:3px}
-.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
+.dot{width:16px;height:16px;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.55);flex-shrink:0}
 .dot-todo{background:#e63946}.dot-done{background:#2dc653}
 .dot-w1{background:#3b82f6}.dot-w2{background:#f97316}.dot-sel{background:#a855f7;transform:scale(1.5)}
-.mlb{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.mlb{font-size:20px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;letter-spacing:-0.5px}
 .mlb-todo{background:rgba(0,0,0,.65);color:#fff}.mlb-done{background:rgba(45,198,83,.85);color:#fff}
 .mlb-w1{background:rgba(59,130,246,.85);color:#fff}.mlb-w2{background:rgba(249,115,22,.85);color:#fff}
 .mlb-sel{background:rgba(168,85,247,.9);color:#fff}
@@ -108,7 +123,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <span class="bd2">🟠<span id="w2c">0</span></span>
   <span class="bdd">✅<span id="dnc">0</span></span>
 </div>
-<div id="syncing">🔄 동기화 중...</div>
+<div id="syncing" style="position:fixed;top:58px;right:12px;z-index:100;background:rgba(0,0,0,.6);color:#FFEB00;border-radius:20px;padding:3px 12px;font-size:11px;display:none">🔄 동기화 중...</div>
 <div id="zm"><button onclick="dz(1)">+</button><button onclick="dz(-1)">−</button></div>
 <div id="legend">
   <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
@@ -146,6 +161,11 @@ var R=Math.PI/180;
 var fbState={}; // {nm: {worker:0,done:false}}
 
 // Firebase 실시간 연결
+db.ref('projects/'+PROJ_ID+'/points').once('value',function(snap){
+  if(!snap.val()){
+    document.getElementById('bd').innerHTML='<span style="color:#ff6b6b">⚠️ 데이터 없음 — 관리자 프로그램에서 사업을 등록하고 배포하세요</span>';
+  }
+});
 db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
   fbState=snap.val()||{};
   drawMarkers();buildList(getFltList());
@@ -156,10 +176,17 @@ function getW(nm){return (fbState[nm]&&fbState[nm].worker)||0;}
 function getDone(nm){return !!(fbState[nm]&&fbState[nm].done);}
 
 function setStatus(nm,data){
-  document.getElementById('syncing').style.display='block';
-  db.ref('projects/'+PROJ_ID+'/status/'+nm).update(data).then(function(){
-    setTimeout(function(){document.getElementById('syncing').style.display='none';},800);
-  });
+  // 로컬 즉시 반영
+  fbState[nm]=Object.assign(fbState[nm]||{},data);
+  saveLocal();
+  drawMarkers();updateStats();
+  // Firebase 동기화
+  if(db){
+    document.getElementById('syncing').style.display='block';
+    db.ref('projects/'+PROJ_ID+'/status/'+nm).update(data).then(function(){
+      setTimeout(function(){document.getElementById('syncing').style.display='none';},600);
+    });
+  }
 }
 
 function ll2t(la,ln,z){
@@ -234,12 +261,34 @@ function getPfx(nm){
 }
 function drawMarkers(){
   var md=document.getElementById('mk');md.innerHTML='';
+  // 겹침 방지용 점유 그리드
+  var occupied={};
+  function canPlace(x,y,w,h){
+    var gx=Math.floor(x/24),gy=Math.floor(y/20);
+    var cols=Math.ceil(w/24),rows=Math.ceil(h/20);
+    for(var dy=-1;dy<=rows;dy++)for(var dx=-1;dx<=cols;dx++){
+      if(occupied[(gx+dx)+','+(gy+dy)])return false;
+    }
+    return true;
+  }
+  function markPlace(x,y,w,h){
+    var gx=Math.floor(x/24),gy=Math.floor(y/20);
+    var cols=Math.ceil(w/24),rows=Math.ceil(h/20);
+    for(var dy=-1;dy<=rows;dy++)for(var dx=-1;dx<=cols;dx++)occupied[(gx+dx)+','+(gy+dy)]=1;
+  }
   cluster(DALL).forEach(function(g){
     var div=document.createElement('div');div.className='m';
     div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
     if(g.pts.length===1){
       var nm=g.pts[0][0];
-      div.innerHTML='<div class="'+getDC(nm)+'"></div><span class="'+getLC(nm)+'">'+getPfx(nm)+nm+'</span>';
+      var lblW=nm.length*11+10;
+      var showLbl=canPlace(g.x,g.y,lblW+16,22);
+      if(showLbl)markPlace(g.x,g.y,lblW+16,22);
+      if(showLbl){
+        div.innerHTML='<div class="'+getDC(nm)+'"></div><span class="'+getLC(nm)+'">'+getPfx(nm)+nm+'</span>';
+      }else{
+        div.innerHTML='<div class="'+getDC(nm)+'" style="width:14px;height:14px"></div>';
+      }
       if(!selMode)(function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
     }else{
       var dn=g.pts.filter(function(p){return getDone(p[0]);}).length;
@@ -438,5 +487,4 @@ var sx2=0;
 document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.touches[0].clientX;},{passive:true});
 document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
 window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;draw();});
-draw();buildList(DALL);
 </script></body></html>
