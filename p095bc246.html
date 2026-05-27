@@ -5,9 +5,21 @@
 <title>MMS측량(광주)</title>
 <script>
 var db=null,fbState={},PROJ_ID='p095bc246';
-// 담당자 이름을 사업별로 저장
+// 담당자 이름 - Firebase에서 로딩 (전 기기 동기화)
 var WNAMES_KEY='fm_wnames_'+PROJ_ID;
 var workerNames=JSON.parse(localStorage.getItem(WNAMES_KEY)||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
+
+function loadWorkerNames(){
+  if(!db)return;
+  db.ref('projects/'+PROJ_ID+'/workerNames').on('value',function(snap){
+    var names=snap.val();
+    if(names){
+      workerNames=names;
+      localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+      updateWorkerNames();
+    }
+  });
+}
 function fbLoad(){
   // Firebase SDK를 순서대로 로딩
   function loadScript(url,cb){
@@ -37,6 +49,7 @@ function fbLoad(){
           drawMarkers();updateStats();buildList(getFltList());
         });
         console.log('Firebase 연결됨');
+        loadWorkerNames(); // 담당자명 실시간 동기화
       }catch(e){console.warn('Firebase 오류:',e);}
     });
   });
@@ -287,6 +300,12 @@ function openSetting(){
 function saveWorkerNames(){
   ['1','2','3'].forEach(function(i){workerNames[i]=document.getElementById('wn'+i).value||'담당자'+i;});
   localStorage.setItem(WNAMES_KEY,JSON.stringify(workerNames));
+  // Firebase에도 저장 → 모든 기기에 자동 반영
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/workerNames').set(workerNames).then(function(){
+      console.log('담당자명 저장됨');
+    });
+  }
   updateWorkerNames();
   document.getElementById('settingPop').style.display='none';
   drawMarkers();buildList(getFltList());
