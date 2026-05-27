@@ -5,9 +5,23 @@
 <title>22년김포기준점</title>
 <script>
 var db=null,fbState={},PROJ_ID='p6de9d33c';
-// 담당자 이름을 사업별로 저장
+// 담당자 이름 초기값 (localStorage)
 var WNAMES_KEY='fm_wnames_'+PROJ_ID;
 var workerNames=JSON.parse(localStorage.getItem(WNAMES_KEY)||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
+
+// 페이지 로드 즉시 Firebase REST API로 이름 불러오기 (SDK 불필요)
+(function(){
+  var url='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/workerNames.json';
+  fetch(url).then(function(r){return r.json();}).then(function(names){
+    if(names&&typeof names==='object'){
+      workerNames=names;
+      localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+      updateWorkerNames();
+    }
+  }).catch(function(e){console.log('이름 로딩 실패(로컬 사용):',e);});
+})();
+
+
 function fbLoad(){
   // Firebase SDK를 순서대로 로딩
   function loadScript(url,cb){
@@ -22,21 +36,19 @@ function fbLoad(){
       try{
         if(!firebase.apps.length)firebase.initializeApp({"apiKey": "AIzaSyDCZils_rrPT3A5c163FM4Ij8ZXQBvPuqE", "databaseURL": "https://landsurvey2027-default-rtdb.firebaseio.com", "projectId": "landsurvey2027"});
         db=firebase.database();
-        // 상태 실시간 수신
-        db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
-          fbState=snap.val()||{};
-          // 삭제된 포인트 DALL에서 제거
-          Object.keys(fbState).forEach(function(nm){
-            if(fbState[nm]&&fbState[nm].deleted){
-              var idx=DALL.findIndex(function(d){return d[0]===nm;});
-              if(idx>=0)DALL.splice(idx,1);
-            }
-            localState[nm]=Object.assign(localState[nm]||{},fbState[nm]);
-          });
-          VP=getFltList();
-          drawMarkers();updateStats();buildList(getFltList());
-        });
+
         console.log('Firebase 연결됨');
+        // 담당자명 실시간 감지 (PC에서 바꾸면 즉시 반영)
+        db.ref('projects/'+PROJ_ID+'/workerNames').on('value',function(snap){
+          var names=snap.val();
+          if(names&&typeof names==='object'){
+            workerNames=names;
+            localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+            updateWorkerNames();
+            buildList(getFltList());
+            console.log('담당자명 업데이트:', JSON.stringify(names));
+          }
+        });
       }catch(e){console.warn('Firebase 오류:',e);}
     });
   });
@@ -287,6 +299,12 @@ function openSetting(){
 function saveWorkerNames(){
   ['1','2','3'].forEach(function(i){workerNames[i]=document.getElementById('wn'+i).value||'담당자'+i;});
   localStorage.setItem(WNAMES_KEY,JSON.stringify(workerNames));
+  // Firebase에도 저장 → 모든 기기에 자동 반영
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/workerNames').set(workerNames).then(function(){
+      console.log('담당자명 저장됨');
+    });
+  }
   updateWorkerNames();
   document.getElementById('settingPop').style.display='none';
   drawMarkers();buildList(getFltList());
@@ -702,6 +720,6 @@ document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.to
 document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
 window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;resizeCanvas();draw();});
 updateWorkerNames();
-draw();buildList(DALL);
+updateWorkerNames();draw();buildList(DALL);
 fbLoad(); // 즉시 Firebase 연결
 </script></body></html>
