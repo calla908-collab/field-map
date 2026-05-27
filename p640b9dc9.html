@@ -583,7 +583,7 @@ function sPop(d,x,y){
   var pxyEl=document.getElementById('pxy');
   if(pxyEl){
     var xn=d[3],ye=d[4];
-    pxyEl.textContent=(xn!=null&&ye!=null)?'X(N): '+xn.toFixed(3)+'  Y(E): '+ye.toFixed(3):'';
+    pxyEl.textContent=(xn!=null&&ye!=null)?'X(N): '+xn.toFixed(3)+'   Y(E): '+ye.toFixed(3):'';
     pxyEl.style.display=(xn!=null&&ye!=null)?'block':'none';
   }
   document.getElementById('pa').textContent='주소 조회 중...';document.getElementById('pa').className='paddr ld';
