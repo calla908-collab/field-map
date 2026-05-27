@@ -5,9 +5,21 @@
 <title>MMS측량(광주)</title>
 <script>
 var db=null,fbState={},PROJ_ID='p095bc246';
-// 담당자 이름 - Firebase에서 로딩 (전 기기 동기화)
+// 담당자 이름 초기값 (localStorage)
 var WNAMES_KEY='fm_wnames_'+PROJ_ID;
 var workerNames=JSON.parse(localStorage.getItem(WNAMES_KEY)||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
+
+// 페이지 로드 즉시 Firebase REST API로 이름 불러오기 (SDK 불필요)
+(function(){
+  var url='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/workerNames.json';
+  fetch(url).then(function(r){return r.json();}).then(function(names){
+    if(names&&typeof names==='object'){
+      workerNames=names;
+      localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+      updateWorkerNames();
+    }
+  }).catch(function(e){console.log('이름 로딩 실패(로컬 사용):',e);});
+})();
 
 
 function fbLoad(){
@@ -26,14 +38,15 @@ function fbLoad(){
         db=firebase.database();
 
         console.log('Firebase 연결됨');
-        // 담당자명 실시간 동기화 (모든 기기)
+        // 담당자명 실시간 감지 (PC에서 바꾸면 즉시 반영)
         db.ref('projects/'+PROJ_ID+'/workerNames').on('value',function(snap){
           var names=snap.val();
-          if(names){
+          if(names&&typeof names==='object'){
             workerNames=names;
             localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
             updateWorkerNames();
             buildList(getFltList());
+            console.log('담당자명 업데이트:', JSON.stringify(names));
           }
         });
       }catch(e){console.warn('Firebase 오류:',e);}
@@ -707,6 +720,6 @@ document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.to
 document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
 window.addEventListener('resize',function(){W=window.innerWidth;H=window.innerHeight;resizeCanvas();draw();});
 updateWorkerNames();
-draw();buildList(DALL);
+updateWorkerNames();draw();buildList(DALL);
 fbLoad(); // 즉시 Firebase 연결
 </script></body></html>
