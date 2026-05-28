@@ -288,25 +288,40 @@ function drawLines(){
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);
   if(!showLines||!DLINES||!DLINES.length)return;
-  // 레이어별 색상
-  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF'};
-  DLINES.forEach(function(line){
-    var pts=line.pts;
-    if(!pts||pts.length<2)return;
-    var color=layerColors[line.layer]||'#FF6600';
-    ctx.beginPath();
-    ctx.strokeStyle=color;
-    ctx.lineWidth=Z>=16?3:Z>=14?2:1.5;
-    ctx.globalAlpha=0.9;
-    var first=true;
-    pts.forEach(function(pt){
-      var t=ll2t(pt[0],pt[1],Z);
-      var sx=(t.x-CX)*256+W/2;
-      var sy=(t.y-CY)*256+H/2;
-      if(first){ctx.moveTo(sx,sy);first=false;}
-      else ctx.lineTo(sx,sy);
-    });
-    ctx.stroke();
+  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
+  DLINES.forEach(function(item){
+    var color=layerColors[item.layer]||'#FF6600';
+    if(item.tp==='text'||item.type==='text'){
+      // 텍스트 표시
+      if(!item.pts||!item.pts[0])return;
+      var t=ll2t(item.pts[0][0],item.pts[0][1],Z);
+      var sx=(t.x-CX)*256+W/2,sy=(t.y-CY)*256+H/2;
+      if(sx<-200||sx>W+200||sy<-200||sy>H+200)return;
+      var fontSize=Math.max(10,Math.min(18,Z-4));
+      ctx.font='bold '+fontSize+'px Arial';
+      ctx.fillStyle=color;
+      ctx.globalAlpha=0.9;
+      ctx.strokeStyle='rgba(255,255,255,0.8)';
+      ctx.lineWidth=3;
+      ctx.strokeText(item.text||'',sx,sy);
+      ctx.fillText(item.text||'',sx,sy);
+    } else {
+      // 라인 표시
+      var pts=item.pts;
+      if(!pts||pts.length<2)return;
+      ctx.beginPath();
+      ctx.strokeStyle=color;
+      ctx.lineWidth=Z>=16?2.5:Z>=14?2:1.5;
+      ctx.globalAlpha=0.9;
+      var first=true;
+      pts.forEach(function(pt){
+        var t=ll2t(pt[0],pt[1],Z);
+        var sx=(t.x-CX)*256+W/2,sy=(t.y-CY)*256+H/2;
+        if(first){ctx.moveTo(sx,sy);first=false;}
+        else ctx.lineTo(sx,sy);
+      });
+      ctx.stroke();
+    }
   });
   ctx.globalAlpha=1.0;
 }
