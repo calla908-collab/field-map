@@ -235,6 +235,15 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
+<!-- 레이어 ON/OFF 패널 -->
+<div id="layerPanel" style="display:none;position:fixed;right:56px;top:120px;z-index:490;background:#fff;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:0;min-width:180px;overflow:hidden">
+  <div style="background:#1a1a2e;color:#FFEB00;padding:10px 14px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
+    <span>📋 레이어 ON/OFF</span>
+    <button onclick="toggleLayerPanel()" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0">×</button>
+  </div>
+  <div id="layerList" style="padding:8px 0"></div>
+</div>
+
 <!-- DXF 라인 팝업 -->
 <div id="linePop" style="display:none;position:fixed;z-index:501;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.3);min-width:220px;border-left:4px solid #3b82f6" onclick="event.stopPropagation()">
   <button onclick="document.getElementById('linePop').style.display='none'" style="position:absolute;top:6px;right:10px;border:none;background:none;font-size:20px;color:#ccc;cursor:pointer">×</button>
@@ -860,6 +869,73 @@ function flyToLineIdx(idx, keepStats){
   draw();
   savePos(); // 이동 후 위치 저장
   if(!keepStats)document.getElementById('statsMod').style.display='none';
+}
+
+// 레이어 패널 토글
+function toggleLayerPanel(){
+  var panel=document.getElementById('layerPanel');
+  if(!panel)return;
+  if(panel.style.display==='none'){
+    buildLayerPanel();
+    panel.style.display='block';
+  } else {
+    panel.style.display='none';
+  }
+}
+
+// 레이어 패널 내용 생성
+function buildLayerPanel(){
+  var list=document.getElementById('layerList');
+  if(!list)return;
+  // 레이어 목록 추출
+  var layers=[];
+  (DLINES||[]).forEach(function(item){
+    if((item.tp||item.type||'line')==='text')return;
+    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
+  });
+  if(!layers.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:#aaa">레이어 없음</div>';return;}
+  var html='';
+  // 전체 토글
+  var allOn=layers.every(function(l){return !hiddenLayers[l];});
+  html+='<div style="padding:6px 14px;border-bottom:1px solid #f0f0f0">';
+  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
+  html+='<input type="checkbox" id="layerAll" '+(allOn?'checked':'')+'  onchange="toggleAllLayers(this.checked)">';
+  html+='<span style="font-size:12px;font-weight:700;color:#333">전체</span></label></div>';
+  // 레이어별
+  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
+  layers.forEach(function(l){
+    var visible=!hiddenLayers[l];
+    var color=layerColors[l]||'#666';
+    // 라인 수 계산
+    var cnt=DLINES.filter(function(d){return d.layer===l&&(d.tp||d.type||'line')!=='text';}).length;
+    html+='<div style="padding:6px 14px;border-bottom:1px solid #f9f9f9">';
+    html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
+    html+='<input type="checkbox" '+(visible?'checked':'')+' onchange="toggleLayer(''+l+'',this.checked)">';
+    html+='<div style="width:20px;height:4px;background:'+color+';border-radius:2px;flex-shrink:0"></div>';
+    html+='<span style="font-size:12px;font-weight:600;color:'+(visible?'#333':'#aaa')+';flex:1">'+l+'</span>';
+    html+='<span style="font-size:10px;color:#aaa">'+cnt+'개</span>';
+    html+='</label></div>';
+  });
+  list.innerHTML=html;
+}
+
+// 개별 레이어 토글
+function toggleLayer(layerName, visible){
+  hiddenLayers[layerName]=!visible;
+  drawLines();
+  buildLayerPanel(); // 패널 갱신
+}
+
+// 전체 레이어 토글
+function toggleAllLayers(visible){
+  var layers=[];
+  (DLINES||[]).forEach(function(item){
+    if((item.tp||item.type||'line')==='text')return;
+    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
+  });
+  layers.forEach(function(l){hiddenLayers[l]=!visible;});
+  drawLines();
+  buildLayerPanel();
 }
 
 function toggleLines(){
