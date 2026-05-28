@@ -236,7 +236,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <!-- 레이어 관리 패널 (CAD 스타일) -->
-<div id="layerPanel" onclick="event.stopPropagation()" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
+<div id="layerPanel" onclick="event.stopPropagation()" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
   <!-- 헤더 -->
   <div style="background:#1a1a2e;color:#FFEB00;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
     <div style="font-size:15px;font-weight:700">📋 레이어 관리</div>
@@ -297,7 +297,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn" onclick="showLayerStats()" style="background:#f97316;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📊</button>
-  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer;display:none">📋 레이어</button>
+  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📋 레이어</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
 <div id="bd">
@@ -665,9 +665,16 @@ function calcPointStats(){
 }
 
 function showLayerStats(){
-  var hasDXF=DLINES&&DLINES.length>0;
+  var hasDXF=DLINES&&DLINES.filter(function(d){return (d.tp||d.type||'line')!=='text';}).length>0;
   var hasPts=DALL&&DALL.length>0;
-  if(!hasDXF&&!hasPts){alert('통계 데이터가 없어요.');return;}
+  if(!hasDXF&&!hasPts){
+    document.getElementById('statsTotal').textContent='데이터 없음';
+    document.getElementById('layerTabs').innerHTML='';
+    document.getElementById('statsBar').innerHTML='<div style="padding:20px;text-align:center;color:#aaa">포인트 또는 DXF 라인 데이터가 없어요</div>';
+    document.getElementById('statsList').innerHTML='';
+    document.getElementById('statsMod').style.display='flex';
+    return;
+  }
 
   // DXF 없고 포인트만 있는 경우 - 포인트 통계
   if(!hasDXF&&hasPts){
@@ -888,8 +895,9 @@ function flyToLineIdx(idx, keepStats){
 // 레이어 패널 토글
 function toggleLayerPanel(){
   var panel=document.getElementById('layerPanel');
-  if(!panel)return;
-  if(panel.style.display==='none'||!panel.style.display){
+  if(!panel){console.log('layerPanel 없음'); return;}
+  var cur=window.getComputedStyle(panel).display;
+  if(cur==='none'||!panel.style.display||panel.style.display==='none'){
     buildLayerPanel();
     panel.style.display='flex';
   } else {
