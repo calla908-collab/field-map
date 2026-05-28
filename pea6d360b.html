@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>2026년김포시(상수)</title>
+<script>
+var db=null,fbState={},PROJ_ID='pea6d360b';
+// 담당자 이름 초기값 (localStorage)
+var WNAMES_KEY='fm_wnames_'+PROJ_ID;
+var workerNames=JSON.parse(localStorage.getItem(WNAMES_KEY)||'{"1":"담당자1","2":"담당자2","3":"담당자3"}');
+
+// 페이지 로드 즉시 Firebase REST API로 이름 불러오기 (SDK 불필요)
+(function(){
+  var url='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/workerNames.json';
+  fetch(url).then(function(r){return r.json();}).then(function(raw){
+    if(!raw)return;
+    var names;
+    if(Array.isArray(raw)){
+      // Firebase가 숫자키를 배열로 변환한 경우
+      names={"1":raw[1]||"담당자1","2":raw[2]||"담당자2","3":raw[3]||"담당자3"};
+    }else if(typeof raw==='object'){
+      names={"1":raw["1"]||"담당자1","2":raw["2"]||"담당자2","3":raw["3"]||"담당자3"};
+    }
+    if(names){
+      workerNames=names;
+      localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+      updateWorkerNames();
+    }
+  }).catch(function(e){console.log('이름 로딩 실패:',e);});
+})();
+
+
+function fbLoad(){
+  // Firebase SDK를 순서대로 로딩
+  function loadScript(url,cb){
+    var s=document.createElement('script');
+    s.src=url;s.async=true;
+    s.onload=cb;s.onerror=function(){console.warn('SDK 로드 실패:',url);cb();};
+    document.head.appendChild(s);
+  }
+  loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',function(){
+    loadScript('https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js',function(){
+      if(typeof firebase==='undefined'){console.warn('Firebase 없음');return;}
+      try{
+        if(!firebase.apps.length)firebase.initializeApp({"apiKey": "AIzaSyDCZils_rrPT3A5c163FM4Ij8ZXQBvPuqE", "databaseURL": "https://landsurvey2027-default-rtdb.firebaseio.com", "projectId": "landsurvey2027"});
+        db=firebase.database();
+
+        console.log('Firebase 연결됨');
+        document.getElementById('fbDot').textContent='🟢';
+        document.getElementById('fbDot').title='Firebase 실시간 연결됨';
+        // ★ 상태 실시간 리스너 (완료/담당자 변경 즉시 반영)
+        db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
+          fbState=snap.val()||{};
+          // 삭제된 포인트 처리
+          Object.keys(fbState).forEach(function(nm){
+            if(fbState[nm]&&fbState[nm].deleted){
+              var idx=DALL.findIndex(function(d){return d[0]===nm;});
+              if(idx>=0)DALL.splice(idx,1);
+            }
+            localState[nm]=Object.assign(localState[nm]||{},fbState[nm]);
+          });
+          drawMarkers();updateStats();buildList(getFltList());
+        });
+        // 담당자명 실시간 감지 (PC에서 바꾸면 즉시 반영)
+        db.ref('projects/'+PROJ_ID+'/workerNames').on('value',function(snap){
+          var raw=snap.val();
+          if(!raw)return;
+          var names;
+          if(Array.isArray(raw)){
+            names={"1":raw[1]||"담당자1","2":raw[2]||"담당자2","3":raw[3]||"담당자3"};
+          }else{
+            names={"1":raw["1"]||"담당자1","2":raw["2"]||"담당자2","3":raw["3"]||"담당자3"};
+          }
+          workerNames=names;
+          localStorage.setItem(WNAMES_KEY,JSON.stringify(names));
+          updateWorkerNames();
+          buildList(getFltList());
+        });
+      }catch(e){console.warn('Firebase 오류:',e);}
+    });
+  });
+}
+</script>
+</head><body>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+#map{position:fixed;inset:0;overflow:hidden;background:#e8e0d8}
+#map.pan{cursor:grab}#map.pan.gr{cursor:grabbing}#map.sel{cursor:crosshair}
+#tl,#mk{position:absolute;top:0;left:0}
+#mk{pointer-events:none}
+.tile{position:absolute;width:256px;height:256px}
+.m{position:absolute;transform:translate(-50%,-50%);pointer-events:all;display:flex;align-items:center;gap:3px}
+.m.noptr{pointer-events:none!important}
+.dot{width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.5);flex-shrink:0}
+.dt{background:#e63946}.dd{background:#2dc653}
+.dw1{background:#3b82f6}.dw2{background:#f97316}.dw3{background:#a855f7}
+.dsel{background:#FFD700;border-color:#333;transform:scale(1.5)}
+.mlb{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;line-height:1.4;pointer-events:none}
+.mt{background:rgba(0,0,0,.8);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8)}.md{background:rgba(45,198,83,.9);color:#fff}
+.mw1{background:rgba(59,130,246,.9);color:#fff}.mw2{background:rgba(249,115,22,.9);color:#fff}
+.mw3{background:rgba(168,85,247,.9);color:#fff}.msel{background:rgba(255,215,0,.95);color:#333}
+.cl{width:38px;height:38px;border:2px solid rgba(0,0,0,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+/* 라쏘 캔버스 */
+#lassoCanvas{position:fixed;inset:0;z-index:250;pointer-events:none;display:none}
+/* 선택 패널 */
+#selPanel{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.22);display:none;min-width:320px}
+.sp-cnt{font-size:13px;font-weight:700;color:#111;margin-bottom:12px;text-align:center}
+.sp-row{display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap}
+.sp-btn{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;font-size:12px;font-weight:700;border:none;cursor:pointer;text-align:center}
+.sp-w1{background:#3b82f6;color:#fff}.sp-w2{background:#f97316;color:#fff}
+.sp-w3{background:#a855f7;color:#fff}.sp-inv{background:#1a1a2e;color:#FFEB00}
+.sp-can{background:#f0f0f0;color:#444}.sp-clr{background:#fee2e2;color:#dc2626}
+.sp-rest{background:#e8f8f0;color:#065f46;font-size:11px}
+/* 팝업 */
+#pop{position:fixed;z-index:500;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);width:250px;display:none}
+.pname{font-size:15px;font-weight:700;color:#111;margin-bottom:3px;padding-right:22px}
+.pcoord{color:#bbb;font-size:10px;margin-bottom:4px}
+.paddr{color:#444;font-size:12px;margin-bottom:10px;line-height:1.6;min-height:18px}
+.paddr.ld{color:#bbb;font-style:italic}
+.pst{font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.pst-t{background:#fff0f0;color:#e63946}.pst-d{background:#f0fff4;color:#2dc653}
+.pst-w1{background:#eff6ff;color:#3b82f6}.pst-w2{background:#fff7ed;color:#f97316}.pst-w3{background:#faf5ff;color:#a855f7}
+.pbtns{display:flex;flex-direction:column;gap:6px}
+.pbtn{display:block;padding:10px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;border:none;width:100%}
+.pbtn-k{background:#FFEB00;color:#1a0a00}.pbtn-done{background:#2dc653;color:#fff}
+.pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
+.pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer}
+/* 상단바 */
+#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
+#tb h1{font-size:13px;font-weight:700;color:#1a0a00;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+#si{flex:1;min-width:60px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:13px;color:#1a0a00;outline:none}
+.tbtn{border:none;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tbtn-n{background:rgba(0,0,0,.12);color:#1a0a00}.tbtn-a{background:#a855f7;color:#fff}
+/* 상태바 */
+#bd{position:fixed;top:58px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:20px;padding:4px 14px;font-size:11px;color:#fff;display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+#syncing{display:none;position:fixed;top:58px;right:12px;z-index:100;background:rgba(0,0,0,.65);color:#FFEB00;border-radius:16px;padding:3px 12px;font-size:11px}
+/* 줌/패널 */
+#zm{position:fixed;right:12px;top:88px;z-index:100;display:flex;flex-direction:column;gap:6px}
+#zm button{width:40px;height:40px;background:#fff;border:none;border-radius:10px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#sh{position:fixed;top:0;right:0;bottom:0;z-index:200;width:280px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+#sh.on{transform:translateX(0)}
+#shh{padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#f9f9f9}
+#shc{font-size:11px;color:#888;margin-top:2px}
+#shx{background:none;border:none;font-size:22px;color:#bbb;cursor:pointer}
+#flt{display:flex;border-bottom:1px solid #f0f0f0;flex-shrink:0;overflow-x:auto}
+.ft{flex:1;min-width:44px;padding:8px 3px;text-align:center;font-size:10px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;white-space:nowrap}
+.ft.on{color:#1a0a00;border-bottom-color:#FFEB00}
+#s2{width:100%;padding:8px 12px;border:none;border-bottom:1px solid #f0f0f0;font-size:13px;outline:none;flex-shrink:0}
+#shl{flex:1;overflow-y:auto}
+.li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:.5px solid #f2f2f2;cursor:pointer}
+.li:hover{background:#f8f8f8}
+.lnum{min-width:58px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 5px;text-align:center;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lt{background:#FFEB00;color:#1a0a00}.ld2{background:#2dc653;color:#fff}
+.lw1{background:#3b82f6;color:#fff}.lw2{background:#f97316;color:#fff}.lw3{background:#a855f7;color:#fff}
+.lcoord{font-size:10px;color:#aaa;margin-top:1px}
+/* 담당자 설정 팝업 */
+#settingPop{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+#settingBox{background:#fff;border-radius:16px;padding:20px;width:300px;max-width:90vw}
+#settingBox h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wdot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.winput{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;outline:none}
+#legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
+.lg{display:flex;align-items:center;gap:6px}
+.lgd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+
+<div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
+<canvas id="lassoCanvas"></canvas>
+<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:50;pointer-events:none"></canvas>
+<div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
+
+<div id="selPanel">
+  <div class="sp-cnt" id="spCnt">0개 선택됨</div>
+  <div class="sp-row">
+    <button class="sp-btn sp-w1" id="spW1" onclick="assignW(1)">🔵 <span id="spN1">담당자1</span></button>
+    <button class="sp-btn sp-w2" id="spW2" onclick="assignW(2)">🟠 <span id="spN2">담당자2</span></button>
+    <button class="sp-btn sp-w3" id="spW3" onclick="assignW(3)">🟣 <span id="spN3">담당자3</span></button>
+  </div>
+  <div class="sp-row">
+    <button class="sp-btn sp-inv" onclick="invertSel()">↔ 선택 반전</button>
+    <button class="sp-btn sp-can" onclick="clearSel()">✕ 선택취소</button>
+    <button class="sp-btn sp-clr" onclick="clearAssign()">🗑 할당해제</button>
+  </div>
+  <div class="sp-row" id="restRow" style="display:none">
+    <button class="sp-btn sp-rest" id="restBtn1" onclick="assignRest(1)">나머지→<span id="rn1">담당1</span></button>
+    <button class="sp-btn sp-rest" id="restBtn2" onclick="assignRest(2)">나머지→<span id="rn2">담당2</span></button>
+    <button class="sp-btn sp-rest" id="restBtn3" onclick="assignRest(3)">나머지→<span id="rn3">담당3</span></button>
+  </div>
+</div>
+
+<!-- 배분 초기화 버튼 (항상 표시) -->
+<div id="resetBar" style="display:none;position:fixed;bottom:16px;right:16px;z-index:401">
+  <button onclick="resetAllAssign()" style="background:#dc2626;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25)">🗑 배분 전체 초기화</button>
+</div>
+
+<div id="pop" onclick="event.stopPropagation()">
+  <button class="pclose" onclick="event.stopPropagation();cPop()">×</button>
+  <div class="pname" id="pn"></div>
+  <div class="pst" id="pst"></div>
+  <div class="pcoord" id="pc"></div>
+  <div class="pcoord" id="pxy" style="color:#aaa;font-size:10px;margin-bottom:6px"></div>
+  <div class="paddr ld" id="pa">주소 조회 중...</div>
+  <div class="pbtns">
+    <a class="pbtn pbtn-k" id="pk" target="_blank">📍 카카오맵에서 보기</a>
+    <div style="display:flex;gap:5px;margin-bottom:0">
+      <button onclick="event.stopPropagation();changeWorker(1)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#3b82f6;color:#fff">🔵 <span id="pw1">담당1</span></button>
+      <button onclick="event.stopPropagation();changeWorker(2)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#f97316;color:#fff">🟠 <span id="pw2">담당2</span></button>
+      <button onclick="event.stopPropagation();changeWorker(3)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#a855f7;color:#fff">🟣 <span id="pw3">담당3</span></button>
+      <button onclick="event.stopPropagation();changeWorker(0)" style="flex:1;padding:7px 3px;border-radius:8px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:#e5e7eb;color:#666">해제</button>
+    </div>
+    <button class="pbtn pbtn-done" id="pdn" onclick="event.stopPropagation();toggleDone()">✅ 완료 처리</button>
+    <button class="pbtn pbtn-undo" id="pud" onclick="event.stopPropagation();toggleDone()" style="display:none">↩ 완료 취소</button>
+    <button class="pbtn" style="background:#fee2e2;color:#dc2626;font-size:12px;padding:7px" onclick="event.stopPropagation();deletePoint()">🗑 이 포인트 삭제</button>
+  </div>
+</div>
+
+<div id="tb">
+  <h1>📍 2026년김포시(상수)</h1>
+  <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
+  <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
+  <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
+  <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
+</div>
+<div id="bd">
+  <span id="cnt">-</span>
+  <span style="color:#60a5fa;font-weight:600">🔵<span id="w1c">0</span></span>
+  <span style="color:#fb923c;font-weight:600">🟠<span id="w2c">0</span></span>
+  <span style="color:#c084fc;font-weight:600">🟣<span id="w3c">0</span></span>
+  <span style="color:#4ade80;font-weight:600">✅<span id="dnc">0</span></span>
+</div>
+<div id="syncing">🔄 동기화중</div>
+<div id="zm">
+  <button onclick="dz(1)">+</button>
+  <button onclick="dz(-1)">−</button>
+  <button id="dxfBtn" onclick="toggleLines()" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc" title="DXF 라인 표시/숨김" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc;display:none">DXF</button>
+  <button id="mapTypeBtn" onclick="toggleMapType()" style="font-size:18px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="지도/위성 전환">🗺</button>
+</div>
+<div id="legend">
+  <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
+  <div class="lg"><div class="lgd" style="background:#3b82f6"></div><span id="lgn1">담당자1</span></div>
+  <div class="lg"><div class="lgd" style="background:#f97316"></div><span id="lgn2">담당자2</span></div>
+  <div class="lg"><div class="lgd" style="background:#a855f7"></div><span id="lgn3">담당자3</span></div>
+  <div class="lg"><div class="lgd" style="background:#2dc653"></div>완료</div>
+</div>
+<div id="sh">
+  <div id="shh">
+    <div><strong>포인트 목록</strong><div id="shc"></div></div>
+    <button id="shx" onclick="closeSh()">×</button>
+  </div>
+  <div id="flt">
+    <div class="ft on" id="ft-all" onclick="setFlt('all')">전체</div>
+    <div class="ft" id="ft-todo" onclick="setFlt('todo')">미할당</div>
+    <div class="ft" id="ft-w1" onclick="setFlt('w1')">🔵</div>
+    <div class="ft" id="ft-w2" onclick="setFlt('w2')">🟠</div>
+    <div class="ft" id="ft-w3" onclick="setFlt('w3')">🟣</div>
+    <div class="ft" id="ft-done" onclick="setFlt('done')">✅</div>
+  </div>
+  <input id="s2" type="search" placeholder="검색..." oninput="srch(this.value)">
+  <div id="shl"></div>
+</div>
+
+<!-- 담당자 이름 설정 -->
+<div id="settingPop">
+  <div id="settingBox">
+    <h3>⚙ 담당자 이름 설정</h3>
+    <div class="wrow"><div class="wdot" style="background:#3b82f6"></div><input class="winput" id="wn1" placeholder="담당자1"></div>
+    <div class="wrow"><div class="wdot" style="background:#f97316"></div><input class="winput" id="wn2" placeholder="담당자2"></div>
+    <div class="wrow"><div class="wdot" style="background:#a855f7"></div><input class="winput" id="wn3" placeholder="담당자3"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="saveWorkerNames()" style="flex:1;padding:10px;background:#FFEB00;color:#1a0a00;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">저장</button>
+      <button onclick="document.getElementById('settingPop').style.display='none'" style="flex:1;padding:10px;background:#f0f0f0;color:#666;border:none;border-radius:10px;font-size:14px;cursor:pointer">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var DALL=[["L0001",37.775,126.63,null,null],["L0002",37.775,126.635,null,null],["L0003",37.77,126.635,null,null],["L0004",37.77,126.63,null,null],["L0005",37.775,126.64,null,null],["L0006",37.77,126.64,null,null],["L0007",37.765,126.635,null,null],["L0008",37.765,126.63,null,null],["L0009",37.765,126.64,null,null],["L0010",37.77,126.645,null,null],["L0011",37.765,126.645,null,null],["L0012",37.77,126.65,null,null],["L0013",37.765,126.65,null,null],["L0014",37.76,126.635,null,null],["L0015",37.76,126.63,null,null],["L0016",37.76,126.64,null,null],["L0017",37.76,126.645,null,null],["L0018",37.76,126.65,null,null],["L0019",37.765,126.655,null,null],["L0020",37.76,126.655,null,null],["L0021",37.755,126.635,null,null],["L0022",37.755,126.63,null,null],["L0023",37.755,126.64,null,null],["L0024",37.755,126.645,null,null],["L0025",37.755,126.65,null,null],["L0026",37.755,126.655,null,null],["L0027",37.65,126.545,null,null],["L0028",37.65,126.55,null,null],["L0029",37.645,126.55,null,null],["L0030",37.645,126.545,null,null],["L0031",37.646632,126.54872,null,null],["L0032",37.646596,126.548633,null,null],["L0033",37.646482,126.548518,null,null],["L0034",37.646457,126.548498,null,null],["L0035",37.646423,126.548486,null,null],["L0036",37.646364,126.548478,null,null],["L0037",37.646197,126.548481,null,null],["L0038",37.646103,126.548476,null,null],["L0039",37.645994,126.548429,null,null],["L0040",37.645891,126.548371,null,null],["L0041",37.64584,126.548352,null,null],["L0042",37.64578,126.548358,null,null],["L0043",37.645751,126.548381,null,null],["L0044",37.645713,126.548446,null,null],["L0045",37.645692,126.548473,null,null],["L0046",37.645643,126.548465,null,null],["L0047",37.6456,126.54843,null,null],["L0048",37.645484,126.548357,null,null],["L0049",37.645419,126.548342,null,null],["L0050",37.645335,126.548334,null,null],["L0051",37.645228,126.548364,null,null],["L0052",37.645139,126.548403,null,null],["L0053",37.645097,126.548435,null,null],["L0054",37.767574,126.643561,null,null],["L0055",37.767631,126.643549,null,null],["L0056",37.767715,126.643547,null,null],["L0057",37.767805,126.643537,null,null],["L0058",37.767878,126.643497,null,null],["L0059",37.767913,126.643416,null,null],["L0060",37.768012,126.643295,null,null],["L0061",37.768131,126.643168,null,null],["L0062",37.768268,126.643032,null,null],["L0063",37.768382,126.642918,null,null],["L0064",37.768441,126.642862,null,null],["L0065",37.76848,126.642848,null,null],["L0066",37.768659,126.642857,null,null],["L0067",37.768816,126.642858,null,null],["L0068",37.768892,126.642852,null,null],["L0069",37.768964,126.64285,null,null],["L0070",37.769014,126.642843,null,null],["L0071",37.769062,126.642816,null,null],["L0072",37.769098,126.642781,null,null],["L0073",37.769129,126.642712,null,null],["L0074",37.769137,126.642649,null,null],["L0075",37.769119,126.642403,null,null],["L0076",37.76909,126.642244,null,null],["L0077",37.769048,126.642112,null,null],["L0078",37.769008,126.642003,null,null],["L0079",37.768964,126.641836,null,null],["L0080",37.768961,126.641769,null,null],["L0081",37.768965,126.641738,null,null],["L0082",37.760224,126.642038,null,null],["L0083",37.760206,126.642088,null,null],["L0084",37.760027,126.642279,null,null],["L0085",37.76,126.642329,null,null],["L0086",37.762104,126.643206,null,null],["L0087",37.761979,126.643295,null,null],["L0088",37.761509,126.643144,null,null],["L0089",37.761254,126.643125,null,null],["L0090",37.761064,126.642997,null,null],["L0091",37.760663,126.642626,null,null],["L0092",37.760562,126.642507,null,null],["L0093",37.76045,126.642361,null,null],["L0094",37.760405,126.642261,null,null],["L0095",37.760332,126.642172,null,null],["L0096",37.762204,126.642833,null,null],["L0097",37.762234,126.64256,null,null],["L0098",37.762304,126.642289,null,null],["L0099",37.762264,126.642192,null,null],["L0100",37.762176,126.642087,null,null],["L0101",37.762105,126.641955,null,null],["L0102",37.762045,126.641776,null,null],["L0103",37.761949,126.641602,null,null],["L0104",37.761776,126.641464,null,null],["L0105",37.761765,126.641371,null,null],["L0106",37.761801,126.641248,null,null],["L0107",37.761746,126.641074,null,null],["L0108",37.761733,126.64091,null,null],["L0109",37.761747,126.640627,null,null],["L0110",37.761783,126.64038,null,null],["L0111",37.76179,126.640222,null,null],["L0112",37.76175,126.639874,null,null],["L0113",37.761711,126.639764,null,null],["L0114",37.763533,126.639974,null,null],["L0115",37.764002,126.639999,null,null],["L0116",37.762043,126.638408,null,null],["L0117",37.762355,126.638455,null,null],["L0118",37.762931,126.64092,null,null],["L0119",37.763006,126.640671,null,null],["L0120",37.763005,126.640593,null,null],["L0121",37.762964,126.640432,null,null],["L0122",37.763021,126.640324,null,null],["L0123",37.763314,126.640153,null,null],["L0124",37.761683,126.637548,null,null],["L0125",37.761531,126.637513,null,null],["L0126",37.761294,126.637574,null,null],["L0127",37.761098,126.637798,null,null],["L0128",37.764551,126.63722,null,null],["L0129",37.764454,126.637269,null,null],["L0130",37.764347,126.637347,null,null],["L0131",37.764244,126.637439,null,null],["L0132",37.764087,126.637512,null,null],["L0133",37.763969,126.637491,null,null],["L0134",37.763696,126.637512,null,null],["L0135",37.76353,126.637525,null,null],["L0136",37.763363,126.637525,null,null],["L0137",37.763044,126.637597,null,null],["L0138",37.762976,126.637625,null,null],["L0139",37.762879,126.637736,null,null],["L0140",37.762722,126.637948,null,null],["L0141",37.762616,126.638145,null,null],["L0142",37.762481,126.638324,null,null],["L0143",37.762362,126.638426,null,null],["L0144",37.768882,126.641754,null,null],["L0145",37.768796,126.641765,null,null],["L0146",37.768633,126.641785,null,null],["L0147",37.768534,126.64179,null,null],["L0148",37.768485,126.641796,null,null],["L0149",37.768447,126.641775,null,null],["L0150",37.768417,126.641744,null,null],["L0151",37.768372,126.641658,null,null],["L0152",37.768322,126.641585,null,null],["L0153",37.768266,126.641532,null,null],["L0154",37.768208,126.641466,null,null],["L0155",37.768131,126.641361,null,null],["L0156",37.768027,126.641235,null,null],["L0157",37.769982,126.639536,null,null],["L0158",37.770025,126.639533,null,null],["L0159",37.770092,126.639498,null,null],["L0160",37.770163,126.639474,null,null],["L0161",37.770217,126.639457,null,null],["L0162",37.770265,126.639438,null,null],["L0163",37.769987,126.639485,null,null],["L0164",37.77001,126.63945,null,null],["L0165",37.770027,126.639404,null,null],["L0166",37.770028,126.639346,null,null],["L0167",37.769211,126.639618,null,null],["L0168",37.76926,126.639637,null,null],["L0169",37.769369,126.639637,null,null],["L0170",37.769456,126.63963,null,null],["L0171",37.769577,126.639609,null,null],["L0172",37.769662,126.639602,null,null],["L0173",37.769745,126.639594,null,null],["L0174",37.769841,126.63959,null,null],["L0175",37.769899,126.639584,null,null],["L0176",37.769948,126.639564,null,null],["L0177",37.770029,126.63696,null,null],["L0178",37.770124,126.636912,null,null],["L0179",37.770166,126.636865,null,null],["L0180",37.770207,126.63681,null,null],["L0181",37.770281,126.6368,null,null],["L0182",37.770351,126.636796,null,null],["L0183",37.770402,126.636786,null,null],["L0184",37.770431,126.636772,null,null],["L0185",37.77045,126.636702,null,null],["L0186",37.770455,126.636585,null,null],["L0187",37.770443,126.636469,null,null],["L0188",37.770426,126.63636,null,null],["L0189",37.770429,126.636244,null,null],["L0190",37.770424,126.636198,null,null],["L0191",37.770402,126.636173,null,null],["L0192",37.770347,126.636165,null,null],["L0193",37.770272,126.636152,null,null],["L0194",37.770236,126.636162,null,null],["L0195",37.770195,126.636188,null,null],["L0196",37.770177,126.636205,null,null],["L0197",37.770131,126.63629,null,null],["L0198",37.770084,126.636371,null,null],["L0199",37.770067,126.636393,null,null],["L0200",37.770038,126.636414,null,null],["L0201",37.76996,126.636437,null,null],["L0202",37.769934,126.636457,null,null],["L0203",37.76989,126.636548,null,null],["L0204",37.76987,126.63658,null,null],["L0205",37.769852,126.636599,null,null],["L0206",37.769814,126.636607,null,null],["L0207",37.769746,126.636594,null,null],["L0208",37.769682,126.636585,null,null],["L0209",37.769626,126.636578,null,null],["L0210",37.769589,126.636579,null,null],["L0211",37.769571,126.636591,null,null],["L0212",37.769563,126.636608,null,null],["L0213",37.769564,126.636629,null,null],["L0214",37.769575,126.636649,null,null],["L0215",37.769606,126.636682,null,null],["L0216",37.769631,126.636712,null,null],["L0217",37.769697,126.636768,null,null],["L0218",37.769777,126.63682,null,null],["L0219",37.769881,126.636884,null,null],["L0220",37.769957,126.636933,null,null],["L0221",37.770009,126.636956,null,null],["L0222",37.769244,126.639562,null,null],["L0223",37.769334,126.63942,null,null],["L0224",37.769377,126.639265,null,null],["L0225",37.769425,126.639138,null,null],["L0226",37.769483,126.639015,null,null],["L0227",37.769555,126.638897,null,null],["L0228",37.769627,126.638768,null,null],["L0229",37.769686,126.638661,null,null],["L0230",37.769743,126.638505,null,null],["L0231",37.769782,126.638358,null,null],["L0232",37.769804,126.63823,null,null],["L0233",37.769815,126.638119,null,null],["L0234",37.769822,126.638058,null,null],["L0235",37.769864,126.637969,null,null],["L0236",37.769898,126.637892,null,null],["L0237",37.769949,126.637799,null,null],["L0238",37.769976,126.637756,null,null],["L0239",37.770012,126.637662,null,null],["L0240",37.770032,126.637527,null,null],["L0241",37.770035,126.637411,null,null],["L0242",37.770036,126.637299,null,null],["L0243",37.770039,126.637118,null,null],["L0244",37.770034,126.637023,null,null],["L0245",37.768973,126.641683,null,null],["L0246",37.768979,126.641606,null,null],["L0247",37.768971,126.641485,null,null],["L0248",37.768945,126.641345,null,null],["L0249",37.768916,126.641219,null,null],["L0250",37.768894,126.641102,null,null],["L0251",37.768898,126.641026,null,null],["L0252",37.768916,126.640927,null,null],["L0253",37.768915,126.640826,null,null],["L0254",37.768888,126.640687,null,null],["L0255",37.768857,126.640561,null,null],["L0256",37.768821,126.640462,null,null],["L0257",37.768774,126.640283,null,null],["L0258",37.768743,126.640166,null,null],["L0259",37.768732,126.640121,null,null],["L0260",37.768735,126.640099,null,null],["L0261",37.768767,126.640071,null,null],["L0262",37.768835,126.640003,null,null],["L0263",37.768885,126.639954,null,null],["L0264",37.768955,126.639885,null,null],["L0265",37.769015,126.639825,null,null],["L0266",37.769083,126.639749,null,null],["L0267",37.769147,126.639694,null,null],["L0268",37.769198,126.63964,null,null],["L0269",37.761645,126.639809,null,null],["L0270",37.761463,126.640061,null,null],["L0271",37.761326,126.640232,null,null],["L0272",37.761236,126.640379,null,null],["L0273",37.761142,126.640574,null,null],["L0274",37.761077,126.640853,null,null],["L0275",37.760912,126.641269,null,null],["L0276",37.760769,126.641533,null,null],["L0277",37.7606,126.64173,null,null],["L0278",37.760372,126.641845,null,null],["L0279",37.760228,126.641845,null,null],["L0280",37.760204,126.641882,null,null],["L0281",37.761756,126.639526,null,null],["L0282",37.761832,126.639213,null,null],["L0283",37.761929,126.638935,null,null],["L0284",37.761977,126.638736,null,null],["L0285",37.762007,126.638477,null,null],["L0286",37.764085,126.642143,null,null],["L0287",37.764028,126.642028,null,null],["L0288",37.763943,126.641794,null,null],["L0289",37.763912,126.641673,null,null],["L0290",37.763915,126.641272,null,null],["L0291",37.763821,126.641106,null,null],["L0292",37.762941,126.63885,null,null],["L0293",37.763185,126.63922,null,null],["L0294",37.763323,126.639681,null,null],["L0295",37.764186,126.639934,null,null],["L0296",37.764259,126.640021,null,null],["L0297",37.76431,126.640021,null,null],["L0298",37.76449,126.639908,null,null],["L0299",37.764659,126.63982,null,null],["L0300",37.764753,126.639819,null,null],["L0301",37.764826,126.639815,null,null],["L0302",37.76499,126.639733,null,null],["L0303",37.765094,126.63967,null,null],["L0304",37.76521,126.639401,null,null],["L0305",37.765234,126.639268,null,null],["L0306",37.76523,126.639146,null,null],["L0307",37.765586,126.638766,null,null],["L0308",37.766037,126.638462,null,null],["L0309",37.766186,126.638384,null,null],["L0310",37.766464,126.638197,null,null],["L0311",37.766432,126.638161,null,null],["L0312",37.766271,126.637974,null,null],["L0313",37.766219,126.637903,null,null],["L0314",37.766108,126.637737,null,null],["L0315",37.766005,126.637624,null,null],["L0316",37.765645,126.637203,null,null],["L0317",37.765626,126.637192,null,null],["L0318",37.765589,126.637165,null,null],["L0319",37.765535,126.637143,null,null],["L0320",37.765474,126.637122,null,null],["L0321",37.765179,126.636991,null,null],["L0322",37.765105,126.63697,null,null],["L0323",37.75666,126.632683,null,null],["L0324",37.756828,126.632676,null,null],["L0325",37.756904,126.632702,null,null],["L0326",37.75721,126.632803,null,null],["L0327",37.757283,126.632803,null,null],["L0328",37.757402,126.632782,null,null],["L0329",37.757794,126.632618,null,null],["L0330",37.758045,126.632512,null,null],["L0331",37.758231,126.632464,null,null],["L0332",37.758247,126.632457,null,null],["L0333",37.758319,126.632423,null,null],["L0334",37.758409,126.632347,null,null],["L0335",37.758428,126.632298,null,null],["L0336",37.758548,126.631972,null,null],["L0337",37.758618,126.631738,null,null],["L0338",37.75869,126.631452,null,null],["L0339",37.758752,126.631208,null,null],["L0340",37.758757,126.631197,null,null],["L0341",37.7589,126.630922,null,null],["L0342",37.759015,126.630305,null,null],["L0343",37.759037,126.63026,null,null],["L0344",37.759253,126.630244,null,null],["L0345",37.759324,126.630203,null,null],["L0346",37.759451,126.630168,null,null],["L0347",37.759554,126.630176,null,null],["L0348",37.759709,126.630234,null,null],["L0349",37.759831,126.630304,null,null],["L0350",37.759955,126.630419,null,null],["L0351",37.760119,126.630635,null,null],["L0352",37.760194,126.630707,null,null],["L0353",37.760333,126.630764,null,null],["L0354",37.760449,126.630784,null,null],["L0355",37.760521,126.630771,null,null],["L0356",37.760572,126.630762,null,null],["L0357",37.760799,126.630709,null,null],["L0358",37.760997,126.630686,null,null],["L0359",37.761117,126.630725,null,null],["L0360",37.761224,126.63081,null,null],["L0361",37.761306,126.6309,null,null],["L0362",37.761354,126.630967,null,null],["L0363",37.761415,126.631113,null,null],["L0364",37.76156,126.631442,null,null],["L0365",37.761587,126.631527,null,null],["L0366",37.76154,126.631682,null,null],["L0367",37.761454,126.63194,null,null],["L0368",37.761347,126.632282,null,null],["L0369",37.761231,126.632525,null,null],["L0370",37.761081,126.632807,null,null],["L0371",37.761039,126.632983,null,null],["L0372",37.761007,126.63327,null,null],["L0373",37.760938,126.63364,null,null],["L0374",37.76092,126.633927,null,null],["L0375",37.760941,126.63434,null,null],["L0376",37.760931,126.634595,null,null],["L0377",37.760898,126.634947,null,null],["L0378",37.760862,126.635145,null,null],["L0379",37.760802,126.635444,null,null],["L0380",37.760732,126.635709,null,null],["L0381",37.760674,126.636026,null,null],["L0382",37.760571,126.636294,null,null],["L0383",37.760508,126.636671,null,null],["L0384",37.760513,126.636892,null,null],["L0385",37.760532,126.637226,null,null],["L0386",37.760803,126.637538,null,null],["L0387",37.761387,126.638052,null,null],["L0388",37.761721,126.63833,null,null],["L0389",37.764984,126.637038,null,null],["L0390",37.764788,126.637147,null,null],["L0391",37.763808,126.641084,null,null],["L0392",37.763806,126.640402,null,null],["L0393",37.76395,126.640198,null,null],["L0394",37.759417,126.648434,null,null],["L0395",37.759395,126.648524,null,null],["L0396",37.759309,126.648616,null,null],["L0397",37.758927,126.648909,null,null],["L0398",37.758453,126.649429,null,null],["L0399",37.758145,126.649811,null,null],["L0400",37.758039,126.650086,null,null],["L0401",37.757822,126.65037,null,null],["L0402",37.757762,126.650429,null,null],["L0403",37.757629,126.650698,null,null],["L0404",37.757635,126.647647,null,null],["L0405",37.758108,126.64795,null,null],["L0406",37.75856,126.648218,null,null],["L0407",37.758817,126.648324,null,null],["L0408",37.759216,126.648433,null,null],["L0409",37.759401,126.648432,null,null],["L0410",37.767378,126.644567,null,null],["L0411",37.76757,126.644592,null,null],["L0412",37.767734,126.644611,null,null],["L0413",37.767771,126.644649,null,null],["L0414",37.759423,126.648435,null,null],["L0415",37.759402,126.648526,null,null],["L0416",37.759328,126.648611,null,null],["L0417",37.75917,126.648734,null,null],["L0418",37.759032,126.648835,null,null],["L0419",37.758976,126.648912,null,null],["L0420",37.758969,126.649032,null,null],["L0421",37.758965,126.649168,null,null],["L0422",37.758972,126.64928,null,null],["L0423",37.758982,126.649424,null,null],["L0424",37.758978,126.649556,null,null],["L0425",37.758966,126.649688,null,null],["L0426",37.758938,126.649819,null,null],["L0427",37.758914,126.649881,null,null],["L0428",37.758851,126.650057,null,null],["L0429",37.759805,126.648481,null,null],["L0430",37.760167,126.648519,null,null],["L0431",37.760307,126.648588,null,null],["L0432",37.760538,126.648744,null,null],["L0433",37.760664,126.648824,null,null],["L0434",37.765208,126.647719,null,null],["L0435",37.765231,126.647779,null,null],["L0436",37.76522,126.647861,null,null],["L0437",37.765228,126.647927,null,null],["L0438",37.765251,126.647963,null,null],["L0439",37.765282,126.647988,null,null],["L0440",37.765361,126.648031,null,null],["L0441",37.765457,126.648058,null,null],["L0442",37.765584,126.648084,null,null],["L0443",37.765674,126.648102,null,null],["L0444",37.765743,126.648121,null,null],["L0445",37.765798,126.648154,null,null],["L0446",37.765878,126.64823,null,null],["L0447",37.765948,126.64832,null,null],["L0448",37.766014,126.648405,null,null],["L0449",37.766045,126.648461,null,null],["L0450",37.76606,126.648516,null,null],["L0451",37.766057,126.648579,null,null],["L0452",37.766231,126.645454,null,null],["L0453",37.766259,126.645444,null,null],["L0454",37.766324,126.645466,null,null],["L0455",37.766399,126.645498,null,null],["L0456",37.766466,126.645534,null,null],["L0457",37.766486,126.645516,null,null],["L0458",37.766523,126.645435,null,null],["L0459",37.766556,126.645349,null,null],["L0460",37.766577,126.64522,null,null],["L0461",37.766609,126.645074,null,null],["L0462",37.766632,126.64493,null,null],["L0463",37.766668,126.644871,null,null],["L0464",37.7667,126.644841,null,null],["L0465",37.766834,126.644793,null,null],["L0466",37.766945,126.644764,null,null],["L0467",37.767032,126.644723,null,null],["L0468",37.76709,126.644682,null,null],["L0469",37.767148,126.64464,null,null],["L0470",37.767188,126.644601,null,null],["L0471",37.767209,126.644569,null,null],["L0472",37.767338,126.644576,null,null],["L0473",37.767388,126.64449,null,null],["L0474",37.767412,126.64432,null,null],["L0475",37.76748,126.644001,null,null],["L0476",37.767524,126.643755,null,null],["L0477",37.767551,126.643626,null,null],["L0478",37.766208,126.645233,null,null],["L0479",37.766146,126.644772,null,null],["L0480",37.766103,126.644507,null,null],["L0481",37.76607,126.644297,null,null],["L0482",37.766067,126.64421,null,null],["L0483",37.766095,126.644116,null,null],["L0484",37.766152,126.643944,null,null],["L0485",37.766182,126.643857,null,null],["L0486",37.766317,126.643878,null,null],["L0487",37.766478,126.643947,null,null],["L0488",37.766525,126.643832,null,null],["L0489",37.766537,126.643785,null,null],["L0490",37.766555,126.643731,null,null],["L0491",37.766648,126.643687,null,null],["L0492",37.76681,126.643598,null,null],["L0493",37.766899,126.64355,null,null],["L0494",37.766955,126.643514,null,null],["L0495",37.767037,126.643491,null,null],["L0496",37.767094,126.643439,null,null],["L0497",37.76716,126.643411,null,null],["L0498",37.7672,126.643394,null,null],["L0499",37.767241,126.643393,null,null],["L0500",37.767337,126.643433,null,null],["L0501",37.767471,126.643495,null,null],["L0502",37.765299,126.647657,null,null],["L0503",37.765388,126.647593,null,null],["L0504",37.765517,126.647532,null,null],["L0505",37.765619,126.647508,null,null],["L0506",37.765788,126.647525,null,null],["L0507",37.765913,126.64752,null,null],["L0508",37.765954,126.6475,null,null],["L0509",37.765972,126.647413,null,null],["L0510",37.766017,126.647197,null,null],["L0511",37.766034,126.646991,null,null],["L0512",37.766024,126.64674,null,null],["L0513",37.766033,126.646618,null,null],["L0514",37.766094,126.646391,null,null],["L0515",37.766182,126.64613,null,null],["L0516",37.766217,126.645958,null,null],["L0517",37.766232,126.645735,null,null],["L0518",37.76624,126.645549,null,null],["L0519",37.765154,126.647662,null,null],["L0520",37.765101,126.647447,null,null],["L0521",37.764958,126.647101,null,null],["L0522",37.764869,126.646886,null,null],["L0523",37.764827,126.646698,null,null],["L0524",37.764704,126.646495,null,null],["L0525",37.764451,126.645973,null,null],["L0526",37.764288,126.645543,null,null],["L0527",37.764194,126.645331,null,null],["L0528",37.764085,126.645199,null,null],["L0529",37.764022,126.645105,null,null],["L0530",37.763875,126.644803,null,null],["L0531",37.76372,126.644463,null,null],["L0532",37.76364,126.644402,null,null],["L0533",37.763499,126.644364,null,null],["L0534",37.763278,126.644325,null,null],["L0535",37.763199,126.644299,null,null],["L0536",37.76312,126.644285,null,null],["L0537",37.763009,126.644158,null,null],["L0538",37.762886,126.644011,null,null],["L0539",37.762704,126.643784,null,null],["L0540",37.762575,126.643643,null,null],["L0541",37.762305,126.643376,null,null],["L0542",37.760772,126.648882,null,null],["L0543",37.760851,126.648928,null,null],["L0544",37.760923,126.648942,null,null],["L0545",37.761037,126.64893,null,null],["L0546",37.761117,126.648905,null,null],["L0547",37.761284,126.648833,null,null],["L0548",37.761436,126.648711,null,null],["L0549",37.761742,126.648405,null,null],["L0550",37.761959,126.648214,null,null],["L0551",37.762083,126.648144,null,null],["L0552",37.762307,126.648032,null,null],["L0553",37.762517,126.647954,null,null],["L0554",37.762963,126.647784,null,null],["L0555",37.763101,126.647757,null,null],["L0556",37.76322,126.647765,null,null],["L0557",37.763463,126.64782,null,null],["L0558",37.763715,126.64791,null,null],["L0559",37.764039,126.648108,null,null],["L0560",37.764197,126.648229,null,null],["L0561",37.764329,126.648293,null,null],["L0562",37.764411,126.648327,null,null],["L0563",37.76449,126.64832,null,null],["L0564",37.764602,126.6483,null,null],["L0565",37.764691,126.648273,null,null],["L0566",37.764821,126.648194,null,null],["L0567",37.764971,126.648055,null,null],["L0568",37.765078,126.647915,null,null],["L0569",37.765154,126.647784,null,null],["L0570",37.766077,126.644339,null,null],["L0571",37.766125,126.644367,null,null],["L0572",37.766126,126.644545,null,null]];
+var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
+var showLines=true;
+
+// DXF 라인 그리기
+function drawLines(){
+  var cv=document.getElementById('lineCanvas');
+  if(!cv)return;
+  cv.width=W;cv.height=H;
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(!showLines||!DLINES||!DLINES.length)return;
+  // 레이어별 색상
+  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF'};
+  DLINES.forEach(function(line){
+    var pts=line.pts;
+    if(!pts||pts.length<2)return;
+    var color=layerColors[line.layer]||'#FF6600';
+    ctx.beginPath();
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.globalAlpha=0.85;
+    var first=true;
+    pts.forEach(function(pt){
+      var t=ll2t(pt[0],pt[1],Z);
+      var sx=(t.x-CX)*256+W/2;
+      var sy=(t.y-CY)*256+H/2;
+      if(first){ctx.moveTo(sx,sy);first=false;}
+      else ctx.lineTo(sx,sy);
+    });
+    ctx.stroke();
+  });
+  ctx.globalAlpha=1.0;
+}
+var W=window.innerWidth,H=window.innerHeight;
+var Z=17,CX=0,CY=0,shOn=false,TC={};
+var mapType='map'; // 'map' | 'satellite' | 'hybrid'
+
+function getTileUrl(tx,ty,z,ntx){
+  if(mapType==='map'){
+    return 'https://map'+(Math.abs(tx+ty)%3+1)+'.daumcdn.net/map_2d_png/1906/L'+z+'/'+ty+'/'+ntx+'.png';
+  } else if(mapType==='satellite'){
+    return 'https://mt'+(Math.abs(tx+ty)%4)+'.google.com/vt/lyrs=s&x='+ntx+'&y='+ty+'&z='+z;
+  } else { // hybrid
+    return 'https://mt'+(Math.abs(tx+ty)%4)+'.google.com/vt/lyrs=y&x='+ntx+'&y='+ty+'&z='+z;
+  }
+}
+
+function toggleLines(){
+  showLines=!showLines;
+  var btn=document.getElementById('dxfBtn');
+  if(btn){
+    btn.style.background=showLines?'#e8f4ff':'#f0f0f0';
+    btn.style.color=showLines?'#0066cc':'#aaa';
+  }
+  drawLines();
+}
+
+function toggleMapType(){
+  var btn=document.getElementById('mapTypeBtn');
+  if(mapType==='map'){
+    mapType='satellite';
+    btn.textContent='🛰';
+    btn.style.background='#1a1a2e';
+    btn.title='위성 → 하이브리드';
+  } else if(mapType==='satellite'){
+    mapType='hybrid';
+    btn.textContent='🛰';
+    btn.style.background='#3b82f6';
+    btn.title='하이브리드 → 일반지도';
+  } else {
+    mapType='map';
+    btn.textContent='🗺';
+    btn.style.background='#fff';
+    btn.title='일반지도 → 위성';
+  }
+  TC={};
+  document.getElementById('tl').innerHTML='';
+  draw();
+}
+var curFlt='all',curPop=null,selMode=false,VP=[];
+var selSet=new Set();
+var addrCache={};
+var R=Math.PI/180;
+var LS_KEY='fm_'+PROJ_ID;
+var localState=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(localState));}catch(e){}}
+function getState(nm){return fbState[nm]||localState[nm]||{};}
+function isDone(nm){return !!(getState(nm).done);}
+function getWorker(nm){return getState(nm).worker||0;}
+
+function setFbStatus(nm,data){
+  localState[nm]=Object.assign(localState[nm]||{},data);
+  saveLocal();
+  var el=document.getElementById('syncing');
+  el.style.display='block';
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/status/'+nm).update(data).then(function(){
+      el.textContent='✅ 저장됨';
+      setTimeout(function(){el.style.display='none';el.textContent='🔄 동기화중';},1200);
+    }).catch(function(){
+      // Firebase SDK 실패 시 REST API로 직접 저장
+      fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/status/'+nm+'.json',{
+        method:'PATCH',
+        body:JSON.stringify(data)
+      }).then(function(){
+        el.textContent='✅ 저장됨';
+        setTimeout(function(){el.style.display='none';el.textContent='🔄 동기화중';},1200);
+      });
+    });
+  } else {
+    // Firebase SDK 없으면 REST로 직접 저장
+    fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/status/'+nm+'.json',{
+      method:'PATCH',
+      body:JSON.stringify(data)
+    }).then(function(){
+      el.textContent='✅ 저장됨';
+      setTimeout(function(){el.style.display='none';el.textContent='🔄 동기화중';},1200);
+    });
+  }
+}
+function setFbStatusBatch(updates){
+  Object.keys(updates).forEach(function(nm){
+    localState[nm]=Object.assign(localState[nm]||{},updates[nm]);
+  });
+  saveLocal();
+  if(db){
+    var el=document.getElementById('syncing');el.style.display='block';
+    db.ref('projects/'+PROJ_ID+'/status').update(updates).then(function(){
+      setTimeout(function(){el.style.display='none';},600);
+    });
+  }
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+// 담당자 이름
+function updateWorkerNames(){
+  ['1','2','3'].forEach(function(i){
+    var n=workerNames[i];
+    document.getElementById('spN'+i).textContent=n;
+    document.getElementById('lgn'+i).textContent=n;
+    document.getElementById('rn'+i).textContent=n;
+    var ft=document.getElementById('ft-w'+i);
+    if(ft)ft.textContent=['🔵','🟠','🟣'][i-1]+n.slice(0,3);
+  });
+}
+function openSetting(){
+  ['1','2','3'].forEach(function(i){document.getElementById('wn'+i).value=workerNames[i]||'담당자'+i;});
+  document.getElementById('settingPop').style.display='flex';
+}
+function forceSync(){
+  // Firebase 상태 강제 재로딩
+  var el=document.getElementById('fbDot');
+  el.textContent='🟡';
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/status').once('value',function(snap){
+      fbState=snap.val()||{};
+      Object.keys(fbState).forEach(function(nm){
+        localState[nm]=Object.assign(localState[nm]||{},fbState[nm]);
+      });
+      drawMarkers();updateStats();buildList(getFltList());
+      el.textContent='🟢';
+    });
+  } else {
+    // Firebase 없으면 페이지 새로고침
+    location.reload();
+  }
+}
+
+function saveWorkerNames(){
+  ['1','2','3'].forEach(function(i){workerNames[i]=document.getElementById('wn'+i).value||'담당자'+i;});
+  localStorage.setItem(WNAMES_KEY,JSON.stringify(workerNames));
+  // Firebase에도 저장 → 모든 기기에 자동 반영
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/workerNames').set(workerNames).then(function(){
+      console.log('담당자명 저장됨');
+    });
+  }
+  updateWorkerNames();
+  document.getElementById('settingPop').style.display='none';
+  drawMarkers();buildList(getFltList());
+}
+
+// 좌표변환
+function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
+function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
+// 첫 번째 포인트를 중심으로 초기화
+(function(){
+  if(DALL.length===0)return;
+  var first=DALL[0];
+  var c=ll2t(first[1],first[2],Z);
+  CX=c.x;CY=c.y;
+  // 첫 로딩 시 팝업 표시 예약
+  setTimeout(function(){
+    if(DALL.length>0){
+      var d=DALL[0];
+      var t=ll2t(d[1],d[2],Z);
+      var px=(t.x-CX)*256+W/2,py=(t.y-CY)*256+H/2;
+      sPop(d,px,py);
+    }
+  },800);
+})();
+function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
+function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
+
+// 타일
+function drawTiles(){
+  var td=document.getElementById('tl'),n=Math.pow(2,Z);
+  var x0=Math.floor(CX-W/512)-1,y0=Math.floor(CY-H/512)-1,x1=Math.ceil(CX+W/512)+1,y1=Math.ceil(CY+H/512)+1;
+  td.querySelectorAll('.tile').forEach(function(t){
+    if(+t.dataset.z!==Z){t.style.display='none';return;}
+    t.style.display='block';var p=p2s(+t.dataset.x,+t.dataset.y);t.style.left=p.x+'px';t.style.top=p.y+'px';
+  });
+  for(var tx=x0;tx<=x1;tx++){for(var ty=y0;ty<=y1;ty++){
+    if(ty<0||ty>=n)continue;
+    var ntx=((tx%n)+n)%n,k=Z+','+tx+','+ty;
+    if(TC[k])continue;TC[k]=1;
+    var img=new Image();img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;img.dataset.ntx=ntx;img.dataset.ty2=ty;img.dataset.tz=Z;
+    img.onerror=function(){if(this.dataset.tried)return;this.dataset.tried=1;this.src='https://a.tile.openstreetmap.org/'+this.dataset.tz+'/'+this.dataset.ntx+'/'+this.dataset.ty2+'.png';};
+    img.src=getTileUrl(tx,ty,Z,ntx);
+    var p=p2s(tx,ty);img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
+    td.appendChild(img);
+  }}
+}
+
+// 클러스터
+function cluster(pts){
+  var cell=44,g={};
+  pts.forEach(function(d){
+    var t=ll2t(d[1],d[2],Z),x=(t.x-CX)*256+W/2,y=(t.y-CY)*256+H/2;
+    if(x<-80||x>W+80||y<-80||y>H+80)return;
+    if(selMode){g[d[0]]={p:[d],la:d[1],ln:d[2],x:x,y:y};return;}
+    var k=Math.floor(x/cell)+','+Math.floor(y/cell);
+    if(!g[k])g[k]={p:[],la:0,ln:0,x:0,y:0};
+    g[k].p.push(d);g[k].la+=d[1];g[k].ln+=d[2];g[k].x+=x;g[k].y+=y;
+  });
+  return Object.keys(g).map(function(k){var c=g[k],n=c.p.length;return{pts:c.p,la:n>1?c.la/n:c.la,ln:n>1?c.ln/n:c.ln,x:n>1?c.x/n:c.x,y:n>1?c.y/n:c.y};});
+}
+
+function getDotCls(nm){
+  if(selSet.has(nm))return'dot dsel';
+  if(isDone(nm))return'dot dd';
+  var w=getWorker(nm);if(w===1)return'dot dw1';if(w===2)return'dot dw2';if(w===3)return'dot dw3';return'dot dt';
+}
+
+// 마커 렌더 - 기본은 점만, 선택모드/zoom16+에서 라벨
+function drawMarkers(){
+  var md=document.getElementById('mk');md.innerHTML='';
+  var showLabel=!selMode&&Z>=16; // 선택모드에서는 점만 표시
+  cluster(DALL).forEach(function(g){
+    var div=document.createElement('div');div.className='m'+(selMode?' noptr':'');
+    div.style.cssText='left:'+Math.round(g.x)+'px;top:'+Math.round(g.y)+'px';
+    if(g.pts.length===1){
+      var nm=g.pts[0][0];
+      var dotHtml='<div class="'+getDotCls(nm)+'"></div>';
+      if(showLabel){
+        var lc=selSet.has(nm)?'mlb msel':isDone(nm)?'mlb md':getWorker(nm)===1?'mlb mw1':getWorker(nm)===2?'mlb mw2':getWorker(nm)===3?'mlb mw3':'mlb mt';
+        dotHtml+='<span class="'+lc+'" style="font-size:14px;font-weight:800">'+nm+'</span>';
+      }
+      div.innerHTML=dotHtml;
+      if(!selMode)(function(d,x,y){div.onclick=function(e){e.stopPropagation();sPop(d,x,y);};})(g.pts[0],g.x,g.y);
+    }else{
+      var dn=g.pts.filter(function(p){return isDone(p[0]);}).length;
+      var w1=g.pts.filter(function(p){return getWorker(p[0])===1&&!isDone(p[0]);}).length;
+      var w2=g.pts.filter(function(p){return getWorker(p[0])===2&&!isDone(p[0]);}).length;
+      var w3=g.pts.filter(function(p){return getWorker(p[0])===3&&!isDone(p[0]);}).length;
+      var bg=dn===g.pts.length?'#2dc653':w1>w2&&w1>w3?'rgba(59,130,246,.85)':w2>w1&&w2>w3?'rgba(249,115,22,.85)':w3>w1&&w3>w2?'rgba(168,85,247,.85)':'rgba(255,235,0,.92)';
+      var fc=dn===g.pts.length||w1>0||w2>0||w3>0?'#fff':'#1a0a00';
+      div.innerHTML='<div class="cl" style="background:'+bg+';color:'+fc+'">'+g.pts.length+'</div>';
+      if(!selMode)(function(la,ln){div.onclick=function(){var nz=Math.min(Z+2,18),f=Math.pow(2,nz-Z);var c=ll2t(la,ln,nz);CX=c.x;CY=c.y;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();};})(g.la,g.ln);
+    }
+    md.appendChild(div);
+  });
+}
+function updateStats(){
+  var w1=0,w2=0,w3=0,dn=0;
+  DALL.forEach(function(d){if(isDone(d[0]))dn++;else{var w=getWorker(d[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;}});
+  document.getElementById('cnt').textContent=DALL.length+'개';
+  document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
+  document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
+}
+function draw(){drawTiles();drawMarkers();updateStats();drawLines();}
+
+// 모드전환
+function toggleMode(){
+  selMode=!selMode;
+  var btn=document.getElementById('modeBtn'),m=document.getElementById('map');
+  var rb=document.getElementById('resetBar');
+  if(selMode){
+    btn.textContent='🖐 이동모드';btn.className='tbtn tbtn-a';m.className='map sel';
+    if(rb)rb.style.display='block';
+    clearSel();
+  }else{
+    btn.textContent='⬜ 범위선택';btn.className='tbtn tbtn-n';m.className='map pan';
+    if(rb)rb.style.display='none';
+    clearSel();
+  }
+  drawMarkers();
+}
+
+// ── 자유 폴리곤 (라쏘) 선택 ──────────────────────────────────
+// PC: 박스 선택 / 모바일: 라쏘 선택
+var isMobileDevice=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+var lassoPath=[];
+var lassoCanvas=document.getElementById('lassoCanvas');
+var lassoCtx=lassoCanvas.getContext('2d');
+function resizeCanvas(){lassoCanvas.width=W;lassoCanvas.height=H;}
+resizeCanvas();
+
+// 박스 선택 (PC)
+var boxStart=null,boxEnd=null;
+function updateBoxRect(){
+  if(!boxStart||!boxEnd)return;
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  var r=document.getElementById('boxRect');
+  r.style.cssText='display:block;left:'+x1+'px;top:'+y1+'px;width:'+(x2-x1)+'px;height:'+(y2-y1)+'px';
+}
+function finishBox(){
+  if(!boxStart||!boxEnd){boxStart=null;return;}
+  var x1=Math.min(boxStart.x,boxEnd.x),y1=Math.min(boxStart.y,boxEnd.y);
+  var x2=Math.max(boxStart.x,boxEnd.x),y2=Math.max(boxStart.y,boxEnd.y);
+  document.getElementById('boxRect').style.display='none';
+  if(x2-x1<5&&y2-y1<5){boxStart=null;return;}
+  // 박스 → 위경도 변환
+  var tl1=s2t(x1,y1),tl2=s2t(x2,y2);
+  var ll1=t2ll(tl1.x,tl1.y,Z),ll2=t2ll(tl2.x,tl2.y,Z);
+  var mla=Math.min(ll1.la,ll2.la),xla=Math.max(ll1.la,ll2.la);
+  var mln=Math.min(ll1.ln,ll2.ln),xln=Math.max(ll1.ln,ll2.ln);
+  selSet=new Set();
+  DALL.forEach(function(d){if(d[1]>=mla&&d[1]<=xla&&d[2]>=mln&&d[2]<=xln)selSet.add(d[0]);});
+  boxStart=null;
+  updateSelPanel();drawMarkers();
+}
+
+// 라쏘 선택 (모바일)
+function drawLasso(){
+  lassoCtx.clearRect(0,0,W,H);
+  if(lassoPath.length<2)return;
+  lassoCtx.beginPath();
+  lassoCtx.moveTo(lassoPath[0].x,lassoPath[0].y);
+  for(var i=1;i<lassoPath.length;i++)lassoCtx.lineTo(lassoPath[i].x,lassoPath[i].y);
+  lassoCtx.closePath();
+  lassoCtx.fillStyle='rgba(168,85,247,.12)';lassoCtx.fill();
+  lassoCtx.strokeStyle='#a855f7';lassoCtx.lineWidth=2;lassoCtx.setLineDash([6,3]);lassoCtx.stroke();
+}
+function pointInPoly(px,py,poly){
+  var inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }return inside;
+}
+function finishLasso(){
+  if(lassoPath.length<3){lassoPath=[];lassoCtx.clearRect(0,0,W,H);return;}
+  selSet=new Set();
+  DALL.forEach(function(d){
+    var t=ll2t(d[1],d[2],Z),px=(t.x-CX)*256+W/2,py=(t.y-CY)*256+H/2;
+    if(pointInPoly(px,py,lassoPath))selSet.add(d[0]);
+  });
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  updateSelPanel();drawMarkers();
+}
+
+function updateSelPanel(){
+  document.getElementById('spCnt').textContent=selSet.size+'개 선택됨';
+  document.getElementById('selPanel').style.display=selSet.size>0?'block':'none';
+  document.getElementById('restRow').style.display=selSet.size>0?'flex':'none';
+}
+
+function assignW(w){var upd={};selSet.forEach(function(nm){upd[nm]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function assignRest(w){var upd={};DALL.forEach(function(d){if(!selSet.has(d[0]))upd[d[0]]={worker:w};});setFbStatusBatch(upd);clearSel();}
+function invertSel(){var ns=new Set();DALL.forEach(function(d){if(!selSet.has(d[0]))ns.add(d[0]);});selSet=ns;updateSelPanel();drawMarkers();}
+function clearSel(){
+  selSet=new Set();
+  document.getElementById('selPanel').style.display='none';
+  lassoPath=[];lassoCtx.clearRect(0,0,W,H);
+  document.getElementById('boxRect').style.display='none';boxStart=null;
+  drawMarkers();
+}
+function clearAssign(){var upd={};selSet.forEach(function(nm){upd[nm]={worker:0};});setFbStatusBatch(upd);clearSel();}
+function resetAllAssign(){
+  if(!confirm('모든 담당자 배분을 초기화할까요?\n완료 처리는 유지됩니다.'))return;
+  var upd={};DALL.forEach(function(d){upd[d[0]]={worker:0};});
+  setFbStatusBatch(upd);clearSel();
+}
+
+// 드래그/터치
+var dr={on:0,sx:0,sy:0,cx:0,cy:0},tp={on:0,sx:0,sy:0,cx:0,cy:0,pd:0};
+var isDrawing=false;
+var mapEl=document.getElementById('map');
+function getXY(e){var t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
+
+// PC 이벤트 (박스 선택)
+mapEl.addEventListener('mousedown',function(e){
+  if(e.button!==0)return; // 왼쪽 클릭만
+  if(selMode){
+    e.preventDefault();
+    boxStart={x:e.clientX,y:e.clientY};
+    boxEnd={x:e.clientX,y:e.clientY};
+    isDrawing=true;
+  }else{
+    dr={on:1,sx:e.clientX,sy:e.clientY,cx:CX,cy:CY};
+    mapEl.classList.add('gr');
+  }
+});
+document.addEventListener('mousemove',function(e){
+  if(selMode&&isDrawing){
+    boxEnd={x:e.clientX,y:e.clientY};
+    updateBoxRect();
+  }else if(!selMode&&dr.on){
+    CX=dr.cx-(e.clientX-dr.sx)/256;
+    CY=dr.cy-(e.clientY-dr.sy)/256;
+    draw();
+  }
+});
+document.addEventListener('mouseup',function(e){
+  if(selMode&&isDrawing){
+    isDrawing=false;
+    finishBox();
+  }
+  dr.on=0;
+  mapEl.classList.remove('gr');
+});
+
+// 모바일 이벤트 (라쏘 선택)
+mapEl.addEventListener('touchstart',function(e){
+  if(e.touches.length===2){tp.on=0;tp.pd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+  else if(selMode){isDrawing=true;lassoPath=[getXY(e)];lassoCanvas.style.display='block';}
+  else{tp={on:1,sx:e.touches[0].clientX,sy:e.touches[0].clientY,cx:CX,cy:CY,pd:0};}
+},{passive:true});
+mapEl.addEventListener('touchmove',function(e){
+  if(e.touches.length===2&&tp.pd){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(Math.abs(d-tp.pd)>25){dz(d>tp.pd?1:-1);tp.pd=d;}}
+  else if(selMode&&isDrawing&&e.touches.length===1){lassoPath.push(getXY(e));drawLasso();}
+  else if(tp.on&&e.touches.length===1){CX=tp.cx-(e.touches[0].clientX-tp.sx)/256;CY=tp.cy-(e.touches[0].clientY-tp.sy)/256;draw();}
+},{passive:true});
+mapEl.addEventListener('touchend',function(){
+  if(selMode&&isDrawing){isDrawing=false;lassoCanvas.style.display='none';finishLasso();}
+  tp.on=0;
+},{passive:true});
+mapEl.addEventListener('wheel',function(e){e.preventDefault();dz(e.deltaY<0?1:-1);},{passive:false});
+mapEl.onclick=function(e){
+  if(selMode)return; // 선택모드에서는 팝업 닫기 안 함
+  cPop();
+};
+
+function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();}
+
+// 주소
+function getAddr(la,ln,cb){
+  var k=la.toFixed(5)+','+ln.toFixed(5);if(addrCache[k]){cb(addrCache[k]);return;}
+  fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18')
+    .then(function(r){return r.json();}).then(function(d){
+      var addr='주소 없음';
+      if(d&&d.address){var a=d.address,p=[];
+        if(a.province||a.state)p.push(a.province||a.state);
+        if(a.city||a.county||a.town)p.push(a.city||a.county||a.town);
+        if(a.suburb||a.quarter||a.neighbourhood||a.village)p.push(a.suburb||a.quarter||a.neighbourhood||a.village);
+        if(a.road)p.push(a.road);if(a.house_number)p.push(a.house_number);
+        addr=p.length?p.join(' '):(d.display_name||'주소 없음');}
+      addrCache[k]=addr;cb(addr);
+    }).catch(function(){cb('주소 조회 실패');});
+}
+
+// 팝업
+function sPop(d,x,y){
+  if(selMode)return;curPop=d;
+  var nm=d[0],la=d[1],ln=d[2],dn=isDone(nm),w=getWorker(nm);
+  document.getElementById('pn').textContent=nm;
+  document.getElementById('pc').textContent='위도: '+la.toFixed(6)+'  경도: '+ln.toFixed(6);
+  // X(N), Y(E) 표시 (있는 경우)
+  var pxyEl=document.getElementById('pxy');
+  if(pxyEl){
+    var xn=d[3],ye=d[4];
+    pxyEl.textContent=(xn!=null&&ye!=null)?'X(N): '+xn.toFixed(3)+'   Y(E): '+ye.toFixed(3):'';
+    pxyEl.style.display=(xn!=null&&ye!=null)?'block':'none';
+  }
+  document.getElementById('pa').textContent='주소 조회 중...';document.getElementById('pa').className='paddr ld';
+  var pst=document.getElementById('pst');
+  if(dn){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=dn?'none':'block';
+  document.getElementById('pud').style.display=dn?'block':'none';
+  document.getElementById('pk').href='https://map.kakao.com/link/map/'+nm+','+la+','+ln;
+  // 담당자 버튼 이름 업데이트
+  document.getElementById('pw1').textContent=workerNames['1'];
+  document.getElementById('pw2').textContent=workerNames['2'];
+  document.getElementById('pw3').textContent=workerNames['3'];
+  getAddr(la,ln,function(addr){var pa=document.getElementById('pa');if(pa){pa.textContent=addr;pa.className='paddr';}});
+  var pop=document.getElementById('pop');
+  pop.style.left=Math.min(x+14,W-265)+'px';pop.style.top=Math.max(Math.min(y-130,H-270),58)+'px';pop.style.display='block';
+}
+function cPop(){document.getElementById('pop').style.display='none';curPop=null;}
+function deletePoint(){
+  if(!curPop)return;
+  var nm=curPop[0];
+  if(!confirm('['+nm+'] 포인트를 삭제할까요?\n삭제 후 복구가 어렵습니다.'))return;
+  // DALL에서 제거
+  var idx=DALL.findIndex(function(d){return d[0]===nm;});
+  if(idx>=0)DALL.splice(idx,1);
+  // Firebase에 삭제 표시
+  setFbStatus(nm,{deleted:true});
+  // VP에서도 제거
+  VP=VP.filter(function(d){return d[0]!==nm;});
+  cPop();
+  draw();buildList(getFltList());
+  // 목록 패널 열기
+  openSh();
+}
+
+function changeWorker(w){
+  if(!curPop)return;
+  var nm=curPop[0];
+  setFbStatus(nm,{worker:w});
+  var pst=document.getElementById('pst');
+  if(w===0){pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+function toggleDone(){
+  if(!curPop)return;var nm=curPop[0],done=!isDone(nm);
+  setFbStatus(nm,{done:done,doneAt:done?Date.now():null});
+  var pst=document.getElementById('pst'),w=getWorker(nm);
+  if(done){pst.textContent='✅ 완료';pst.className='pst pst-d';}
+  else if(w===1){pst.textContent='🔵 '+workerNames['1'];pst.className='pst pst-w1';}
+  else if(w===2){pst.textContent='🟠 '+workerNames['2'];pst.className='pst pst-w2';}
+  else if(w===3){pst.textContent='🟣 '+workerNames['3'];pst.className='pst pst-w3';}
+  else{pst.textContent='📌 미할당';pst.className='pst pst-t';}
+  document.getElementById('pdn').style.display=done?'none':'block';
+  document.getElementById('pud').style.display=done?'block':'none';
+  drawMarkers();updateStats();buildList(getFltList());
+}
+
+// 목록
+function srch(q){q=q.trim().toUpperCase();document.getElementById('si').value=q;document.getElementById('s2').value=q;buildList(getFltList(q));if(!shOn)openSh();}
+function setFlt(f){curFlt=f;['all','todo','w1','w2','w3','done'].forEach(function(t){document.getElementById('ft-'+t).className='ft'+(t===f?' on':'');});buildList(getFltList());}
+function isDeleted(nm){return !!(getState(nm).deleted);}
+function getFltList(q){
+  // 삭제된 포인트 제외
+  var active=DALL.filter(function(d){return!isDeleted(d[0]);});
+  var base=active;
+  if(curFlt==='todo')base=active.filter(function(d){return!isDone(d[0])&&!getWorker(d[0]);});
+  else if(curFlt==='w1')base=active.filter(function(d){return getWorker(d[0])===1&&!isDone(d[0]);});
+  else if(curFlt==='w2')base=active.filter(function(d){return getWorker(d[0])===2&&!isDone(d[0]);});
+  else if(curFlt==='w3')base=active.filter(function(d){return getWorker(d[0])===3&&!isDone(d[0]);});
+  else if(curFlt==='done')base=active.filter(function(d){return isDone(d[0]);});
+  if(q){var qu=q.toUpperCase();base=base.filter(function(d){return d[0].toUpperCase().indexOf(qu)>=0;});}
+  return base;
+}
+function buildList(d){
+  var w1=0,w2=0,w3=0,dn=0,td=0;
+  DALL.forEach(function(x){if(isDone(x[0]))dn++;else{var w=getWorker(x[0]);if(w===1)w1++;else if(w===2)w2++;else if(w===3)w3++;else td++;}});
+  document.getElementById('shc').textContent='미할당 '+td+' | '+workerNames['1']+' '+w1+' | '+workerNames['2']+' '+w2+' | '+workerNames['3']+' '+w3+' | 완료 '+dn;
+  var h='';
+  for(var i=0;i<Math.min(d.length,500);i++){
+    var nm=d[i][0],dn2=isDone(nm),ww=getWorker(nm);
+    var cls=dn2?'ld2':ww===1?'lw1':ww===2?'lw2':ww===3?'lw3':'lt';
+    var tag=dn2?'✅':ww===1?'🔵':ww===2?'🟠':ww===3?'🟣':'';
+    h+='<div class="li" onclick="flyTo('+d[i][1]+','+d[i][2]+',\''+nm.replace(/'/g,"\\'")+'\')"><div class="lnum '+cls+'">'+nm+'</div><div style="flex:1"><div class="lcoord">'+d[i][1].toFixed(5)+'</div><div class="lcoord">'+d[i][2].toFixed(5)+'</div></div>'+(tag?'<span style="font-size:12px;margin-left:auto">'+tag+'</span>':'')+'</div>';
+  }
+  if(d.length>500)h+='<div style="padding:12px;text-align:center;font-size:11px;color:#ccc">검색으로 더 찾아보세요 ('+d.length+'개)</div>';
+  document.getElementById('shl').innerHTML=h;
+}
+function flyTo(la,ln,nm){
+  cPop();closeSh();
+  // 최대 확대 (줌 18)
+  var nz=18;
+  var f=Math.pow(2,nz-Z);
+  CX*=f;CY*=f;Z=nz;
+  TC={};document.getElementById('tl').innerHTML='';
+  // 정확히 중앙으로
+  var c=ll2t(la,ln,Z);CX=c.x;CY=c.y;
+  draw();
+  // 팝업 자동 표시
+  setTimeout(function(){
+    var d=DALL.find(function(x){return x[0]===nm;});
+    if(d){sPop(d,W/2,H/2);}
+  },400);
+}
+function togSh(){shOn?closeSh():openSh();}
+function openSh(){shOn=true;document.getElementById('sh').classList.add('on');}
+function closeSh(){shOn=false;document.getElementById('sh').classList.remove('on');}
+var sx2=0;
+document.getElementById('sh').addEventListener('touchstart',function(e){sx2=e.touches[0].clientX;},{passive:true});
+document.getElementById('sh').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-sx2>60)closeSh();},{passive:true});
+window.addEventListener('resize',function(){
+  W=window.innerWidth;H=window.innerHeight;
+  var lc=document.getElementById('lineCanvas');
+  if(lc){lc.width=W;lc.height=H;}
+  resizeCanvas();draw();
+});
+updateWorkerNames();
+updateWorkerNames();draw();buildList(DALL);
+fbLoad(); // 즉시 Firebase 연결
+
+// ── REST API 폴링 (백업) ─────────────────────────────────────
+// Firebase SDK WebSocket이 막혀도 3초마다 REST로 동기화
+var lastPollData = '';
+function pollStatus(){
+  var url='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/status.json';
+  fetch(url,{cache:'no-store'})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data||typeof data!=='object')return;
+      var str=JSON.stringify(data);
+      if(str===lastPollData)return; // 변경 없으면 무시
+      lastPollData=str;
+      fbState=data;
+      Object.keys(data).forEach(function(nm){
+        localState[nm]=Object.assign(localState[nm]||{},data[nm]);
+      });
+      drawMarkers();updateStats();buildList(getFltList());
+      console.log('REST 폴링 갱신');
+    })
+    .catch(function(e){console.log('폴링 오류:',e);});
+}
+// 3초마다 폴링 (Firebase SDK on()과 병행)
+setInterval(pollStatus, 3000);
+// 첫 로딩 즉시 1회 실행
+setTimeout(pollStatus, 1000);
+
+// Firebase에서 DXF 라인 로딩
+fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data&&Array.isArray(data)&&data.length>0){
+      DLINES=data;
+      var btn=document.getElementById('dxfBtn');
+      if(btn)btn.style.display='flex';
+      drawLines();
+      console.log('DXF 라인 로딩: '+data.length+'개');
+    }
+  }).catch(function(){});
+</script></body></html>
