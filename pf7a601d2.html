@@ -48,6 +48,11 @@ function fbLoad(){
         console.log('Firebase 연결됨');
         document.getElementById('fbDot').textContent='🟢';
         document.getElementById('fbDot').title='Firebase 실시간 연결됨';
+        // ★ 라인 상태 실시간 리스너
+        db.ref('projects/'+PROJ_ID+'/lineStatus').on('value',function(snap){
+          lineStatus=snap.val()||{};
+          drawLines();
+        });
         // ★ 상태 실시간 리스너 (완료/담당자 변경 즉시 반영)
         db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
           fbState=snap.val()||{};
@@ -209,8 +214,13 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 <!-- DXF 라인 팝업 -->
 <div id="linePop" style="display:none;position:fixed;z-index:501;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.3);min-width:220px;border-left:4px solid #3b82f6" onclick="event.stopPropagation()">
   <button onclick="document.getElementById('linePop').style.display='none'" style="position:absolute;top:6px;right:10px;border:none;background:none;font-size:20px;color:#ccc;cursor:pointer">×</button>
-  <div id="lpLayer" style="font-size:13px;font-weight:700;color:#333;margin-bottom:6px"></div>
-  <div id="lpInfo" style="font-size:11px;color:#888;margin-bottom:10px"></div>
+  <div id="lpLayer" style="font-size:13px;font-weight:700;color:#333;margin-bottom:4px"></div>
+  <div id="lpLen" style="font-size:15px;font-weight:800;color:#3b82f6;margin-bottom:3px"></div>
+
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <button id="lpDoneBtn" onclick="toggleLineDone()" style="flex:1;padding:9px;background:#2dc653;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✅ 완료 처리</button>
+    <button id="lpUndoBtn" onclick="toggleLineDone()" style="display:none;flex:1;padding:9px;background:#f0f0f0;color:#666;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">↩ 완료 취소</button>
+  </div>
   <button onclick="flyToLine()" style="width:100%;padding:8px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📍 이 라인으로 이동</button>
 </div>
 
@@ -261,7 +271,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <div class="lg"><div class="lgd" style="background:#3b82f6"></div><span id="lgn1">담당자1</span></div>
   <div class="lg"><div class="lgd" style="background:#f97316"></div><span id="lgn2">담당자2</span></div>
   <div class="lg"><div class="lgd" style="background:#a855f7"></div><span id="lgn3">담당자3</span></div>
-  <div class="lg"><div class="lgd" style="background:#2dc653"></div>완료</div>
+  <div class="lg"><div class="lgd" style="background:#2dc653"></div>완료/라인완료</div>
 </div>
 <div id="sh">
   <div id="shh">
@@ -299,6 +309,28 @@ var DALL=[];
 var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
 var showLines=true;
 var selLine=-1; // 선택된 라인 인덱스
+var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
+
+// 라인 ID
+function lineId(idx){return 'line_'+idx;}
+// 라인 완료 여부
+function lineDone(idx){var s=lineStatus[lineId(idx)];return s&&s.done;}
+
+// 하버사인 공식으로 두 점 거리(m)
+function haversine(la1,ln1,la2,ln2){
+  var R=6371000,dLa=(la2-la1)*Math.PI/180,dLn=(ln2-ln1)*Math.PI/180;
+  var a=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLn/2)*Math.sin(dLn/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+// 라인 전체 연장
+function lineLength(pts){
+  var total=0;
+  for(var i=0;i<pts.length-1;i++) total+=haversine(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1]);
+  return total;
+}
+function fmtLen(m){
+  return m>=1000?(m/1000).toFixed(3)+'km':Math.round(m)+'m';
+}
 var selLineData=null; // 선택된 라인 데이터
 
 // 점-선분 거리
@@ -390,14 +422,42 @@ function flyToLine(){
 // 라인 팝업 표시
 function showLinePop(item,sx,sy){
   selLineData=item;
+  var idx4=DLINES.indexOf(item);
   var layer=item.layer||'(레이어 없음)';
-  var cnt=item.pts?item.pts.length:0;
+  var pts=item.pts||[];
+  var len=lineLength(pts);
+  var done=lineDone(idx4);
   document.getElementById('lpLayer').textContent='📐 레이어: '+layer;
-  document.getElementById('lpInfo').textContent='꼭짓점: '+cnt+'개';
+  document.getElementById('lpLen').textContent='연장: '+fmtLen(len);
+  
+  document.getElementById('lpDoneBtn').style.display=done?'none':'block';
+  document.getElementById('lpUndoBtn').style.display=done?'block':'none';
+  document.getElementById('linePop').style.borderLeftColor=done?'#2dc653':'#3b82f6';
   var pop=document.getElementById('linePop');
-  pop.style.left=Math.min(sx+10,W-220)+'px';
-  pop.style.top=Math.max(Math.min(sy-80,H-160),58)+'px';
+  pop.style.left=Math.min(sx+10,W-240)+'px';
+  pop.style.top=Math.max(Math.min(sy-100,H-200),58)+'px';
   pop.style.display='block';
+}
+
+// 라인 완료 토글
+function toggleLineDone(){
+  if(!selLineData)return;
+  var idx5=DLINES.indexOf(selLineData);
+  var id=lineId(idx5);
+  var done=!lineDone(idx5);
+  lineStatus[id]={done:done,doneAt:done?Date.now():null};
+  // Firebase 저장
+  var url='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/lineStatus/'+id+'.json';
+  
+  if(db){
+    db.ref('projects/'+PROJ_ID+'/lineStatus/'+id).update({done:done,doneAt:done?Date.now():null});
+  } else {
+    fetch(url,{method:'PATCH',body:JSON.stringify({done:done})});
+  }
+  document.getElementById('lpDoneBtn').style.display=done?'none':'block';
+  document.getElementById('lpUndoBtn').style.display=done?'block':'none';
+  document.getElementById('linePop').style.borderLeftColor=done?'#2dc653':'#3b82f6';
+  drawLines();
 }
 
 // DXF 라인 그리기
@@ -410,7 +470,9 @@ function drawLines(){
   if(!showLines||!DLINES||!DLINES.length)return;
   var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
   DLINES.forEach(function(item){
-    var color=layerColors[item.layer]||'#FF6600';
+    var idx3=DLINES.indexOf(item);
+    var isDone3=lineDone(idx3);
+    var color=isDone3?'#2dc653':(layerColors[item.layer]||'#FF6600');
     if(item.tp==='text'||item.type==='text'){
       // 텍스트 표시
       if(!item.pts||!item.pts[0])return;
