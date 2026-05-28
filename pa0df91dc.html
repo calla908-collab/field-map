@@ -235,13 +235,26 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
-<!-- 레이어 ON/OFF 패널 -->
-<div id="layerPanel" style="display:none;position:fixed;right:56px;top:120px;z-index:490;background:#fff;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:0;min-width:180px;overflow:hidden">
-  <div style="background:#1a1a2e;color:#FFEB00;padding:10px 14px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
-    <span>📋 레이어 ON/OFF</span>
-    <button onclick="toggleLayerPanel()" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0">×</button>
+<!-- 레이어 관리 패널 (CAD 스타일) -->
+<div id="layerPanel" onclick="event.stopPropagation()" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
+  <!-- 헤더 -->
+  <div style="background:#1a1a2e;color:#FFEB00;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="font-size:15px;font-weight:700">📋 레이어 관리</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="toggleAllLayers(true)" style="background:#2dc653;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 ON</button>
+      <button onclick="toggleAllLayers(false)" style="background:#e63946;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 OFF</button>
+      <button onclick="toggleLayerPanel()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer">✕ 닫기</button>
+    </div>
   </div>
-  <div id="layerList" style="padding:8px 0"></div>
+  <!-- 컬럼 헤더 -->
+  <div style="display:grid;grid-template-columns:44px 1fr 60px 60px;background:#f4f4f4;border-bottom:2px solid #e0e0e0;padding:6px 14px;flex-shrink:0">
+    <div style="font-size:11px;font-weight:700;color:#888">표시</div>
+    <div style="font-size:11px;font-weight:700;color:#888">레이어명</div>
+    <div style="font-size:11px;font-weight:700;color:#888;text-align:center">색상</div>
+    <div style="font-size:11px;font-weight:700;color:#888;text-align:right">개수</div>
+  </div>
+  <!-- 레이어 목록 -->
+  <div id="layerList" style="overflow-y:auto;flex:1"></div>
 </div>
 
 <!-- DXF 라인 팝업 -->
@@ -284,6 +297,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn" onclick="showLayerStats()" style="background:#f97316;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📊</button>
+  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer;display:none">📋 레이어</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
 <div id="bd">
@@ -875,9 +889,9 @@ function flyToLineIdx(idx, keepStats){
 function toggleLayerPanel(){
   var panel=document.getElementById('layerPanel');
   if(!panel)return;
-  if(panel.style.display==='none'){
+  if(panel.style.display==='none'||!panel.style.display){
     buildLayerPanel();
-    panel.style.display='block';
+    panel.style.display='flex';
   } else {
     panel.style.display='none';
   }
@@ -1365,6 +1379,7 @@ mapEl.addEventListener('dblclick',function(e){
     TC={};document.getElementById('tl').innerHTML='';
     draw();
     document.getElementById('addrPop').style.display='none';
+  document.getElementById('layerPanel').style.display='none';
   }
 });
 
