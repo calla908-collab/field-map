@@ -420,15 +420,17 @@ function flyToLine(){
 }
 
 // 라인 팝업 표시
-function showLinePop(item,sx,sy){
+function showLinePop(item,sx,sy,lineIdx){
   selLineData=item;
-  var idx4=DLINES.indexOf(item);
+  // lineIdx를 직접 받거나 DLINES에서 찾기
+  var idx4=(lineIdx!==undefined)?lineIdx:DLINES.indexOf(item);
   var layer=item.layer||'(레이어 없음)';
   var pts=item.pts||[];
   var len=lineLength(pts);
   var done=lineDone(idx4);
+  var lenStr=len>0?fmtLen(len):'계산 중...';
   document.getElementById('lpLayer').textContent='📐 레이어: '+layer;
-  document.getElementById('lpLen').textContent='연장: '+fmtLen(len);
+  document.getElementById('lpLen').textContent='연장: '+lenStr;
   
   document.getElementById('lpDoneBtn').style.display=done?'none':'block';
   document.getElementById('lpUndoBtn').style.display=done?'block':'none';
@@ -442,7 +444,7 @@ function showLinePop(item,sx,sy){
 // 라인 완료 토글
 function toggleLineDone(){
   if(!selLineData)return;
-  var idx5=DLINES.indexOf(selLineData);
+  var idx5=selLine>=0?selLine:DLINES.indexOf(selLineData);
   var id=lineId(idx5);
   var done=!lineDone(idx5);
   lineStatus[id]={done:done,doneAt:done?Date.now():null};
@@ -937,7 +939,7 @@ mapEl.addEventListener('touchend',function(e){
   if(!selMode&&!tp.on&&e.changedTouches.length===1){
     var t=e.changedTouches[0],sx=t.clientX,sy=t.clientY;
     var found=findNearestLine(sx,sy);
-    if(found){selLine=found.idx;selLineData=found.item;drawLines();showLinePop(found.item,sx,sy);}
+    if(found){selLine=found.idx;selLineData=found.item;drawLines();showLinePop(found.item,sx,sy,found.idx);}
     else if(selLine>=0){selLine=-1;selLineData=null;drawLines();document.getElementById('linePop').style.display='none';}
   }
   tp.on=0;
