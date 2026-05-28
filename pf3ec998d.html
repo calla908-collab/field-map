@@ -70,6 +70,26 @@ function fbLoad(){
           });
           drawMarkers();updateStats();buildList(getFltList());
         });
+        // DXF 라인 실시간 로딩
+        db.ref('projects/'+PROJ_ID+'/dxfLines').once('value',function(snap){
+          var raw=snap.val();
+          if(!raw)return;
+          var data=Array.isArray(raw)?raw:Object.keys(raw).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return raw[k];});
+          DLINES=data.filter(function(d){return d&&d.pts;});
+          if(DLINES.length){
+            document.getElementById('dxfBtn').style.display='';
+            document.getElementById('statsBtn').style.display='';
+            if(DALL.length===0){
+              var sla=0,sln=0,cnt=0;
+              DLINES.forEach(function(l){
+                if(l.tp==='text'||l.type==='text')return;
+                (l.pts||[]).forEach(function(p){sla+=p[0];sln+=p[1];cnt++;});
+              });
+              if(cnt>0){Z=15;var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;TC={};document.getElementById('tl').innerHTML='';}
+            }
+            draw();
+          }
+        });
         // 담당자명 실시간 감지 (PC에서 바꾸면 즉시 반영)
         db.ref('projects/'+PROJ_ID+'/workerNames').on('value',function(snap){
           var raw=snap.val();
@@ -1432,21 +1452,26 @@ fbLoad(); // 즉시 Firebase 연결
 // Firebase SDK WebSocket이 막혀도 3초마다 REST로 동기화
 var lastPollData = '';
 function pollStatus(){
-  var FB='https://landsurvey2027-default-rtdb.firebaseio.com';
-  // 포인트 상태
-  fetch(FB+'/projects/'+PROJ_ID+'/status.json',{cache:'no-store'})
-    .then(function(r){return r.json();}).then(function(d){
+  var FB='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID;
+  // ── 포인트 상태 ──
+  fetch(FB+'/status.json',{cache:'no-store'})
+    .then(function(r){return r.json();})
+    .then(function(d){
       if(!d||typeof d!=='object')return;
       var s=JSON.stringify(d);
-      if(s===_lastPollData)return;
-      _lastPollData=s;
+      if(s===lastPollData)return; // 변경 없으면 무시
+      lastPollData=s;
       fbState=d;
-      Object.keys(d).forEach(function(nm){localState[nm]=Object.assign(localState[nm]||{},d[nm]);});
+      Object.keys(d).forEach(function(nm){
+        if(d[nm]&&typeof d[nm]==='object')
+          localState[nm]=Object.assign(localState[nm]||{},d[nm]);
+      });
       drawMarkers();updateStats();buildList(getFltList());
-    }).catch(function(){});
-  // 라인 상태
-  fetch(FB+'/projects/'+PROJ_ID+'/lineStatus.json',{cache:'no-store'})
-    .then(function(r){return r.json();}).then(function(d){
+    }).catch(function(e){console.log('[포인트폴링오류]',e);});
+  // ── 라인 상태 ──
+  fetch(FB+'/lineStatus.json',{cache:'no-store'})
+    .then(function(r){return r.json();})
+    .then(function(d){
       if(!d||typeof d!=='object')return;
       var s=JSON.stringify(d);
       if(s===_lastLineStatus)return;
@@ -1455,7 +1480,7 @@ function pollStatus(){
       drawLines();
       var sm=document.getElementById('statsMod');
       if(sm&&sm.style.display!=='none')showLayerStats();
-    }).catch(function(){});
+    }).catch(function(e){console.log('[라인폴링오류]',e);});
 }
 setInterval(pollStatus,2000);
 // 첫 로딩 즉시 1회 실행
@@ -1472,29 +1497,39 @@ fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/l
     }
   }).catch(function(){});
 
-// Firebase에서 DXF 라인 로딩
+// Firebase에서 DXF 라인 로딩 (배열/객체 모두 처리)
 fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
   .then(function(r){return r.json();})
-  .then(function(data){
-    if(data&&Array.isArray(data)&&data.length>0){
-      DLINES=data;
-      var btn=document.getElementById('dxfBtn');
-      if(btn)btn.style.display='';
-      var sb=document.getElementById('statsBtn');
-      if(sb)sb.style.display='';
-      // DALL이 없으면 DXF 중심으로 이동
-      if(DALL.length===0){
-        var sla=0,sln=0,cnt=0;
-        data.forEach(function(l){l.pts.forEach(function(p){sla+=p[0];sln+=p[1];cnt++;});});
-        if(cnt>0){
-          Z=15;
-          var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;
-          TC={};document.getElementById('tl').innerHTML='';
-          draw();
-        }
-      }
-      drawLines();
-      console.log('DXF 라인 로딩: '+data.length+'개');
+  .then(function(raw){
+    if(!raw)return;
+    // Firebase가 배열을 객체로 변환할 수 있음 {"0":{...},"1":{...}}
+    var data;
+    if(Array.isArray(raw)){
+      data=raw;
+    } else if(typeof raw==='object'){
+      data=Object.keys(raw).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return raw[k];});
     }
-  }).catch(function(){});
+    if(!data||!data.length)return;
+    DLINES=data.filter(function(d){return d&&d.pts;});
+    if(!DLINES.length)return;
+    document.getElementById('dxfBtn').style.display='';
+    document.getElementById('statsBtn').style.display='';
+    // DALL 없으면 DXF 중심으로 이동
+    if(DALL.length===0){
+      var sla=0,sln=0,cnt=0;
+      DLINES.forEach(function(l){
+        if(l.tp==='text'||l.type==='text')return;
+        (l.pts||[]).forEach(function(p){sla+=p[0];sln+=p[1];cnt++;});
+      });
+      if(cnt>0){
+        Z=15;
+        var c=ll2t(sla/cnt,sln/cnt,Z);
+        CX=c.x;CY=c.y;
+        TC={};
+        document.getElementById('tl').innerHTML='';
+      }
+    }
+    draw();
+    console.log('DXF 로딩 완료:',DLINES.length,'개');
+  }).catch(function(e){console.log('DXF 로딩 오류:',e);});
 </script></body></html>
