@@ -219,7 +219,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <h1>📍 MMS측량(광주)</h1>
   <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
-  <button class="tbtn tbtn-n" id="mapTypeBtn" onclick="toggleMapType()">🛰 위성</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
@@ -231,7 +230,11 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <span style="color:#4ade80;font-weight:600">✅<span id="dnc">0</span></span>
 </div>
 <div id="syncing">🔄 동기화중</div>
-<div id="zm"><button onclick="dz(1)">+</button><button onclick="dz(-1)">−</button></div>
+<div id="zm">
+  <button onclick="dz(1)">+</button>
+  <button onclick="dz(-1)">−</button>
+  <button id="mapTypeBtn" onclick="toggleMapType()" style="font-size:18px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="지도/위성 전환">🗺</button>
+</div>
 <div id="legend">
   <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
   <div class="lg"><div class="lgd" style="background:#3b82f6"></div><span id="lgn1">담당자1</span></div>
@@ -289,13 +292,21 @@ function getTileUrl(tx,ty,z,ntx){
 function toggleMapType(){
   var btn=document.getElementById('mapTypeBtn');
   if(mapType==='map'){
-    mapType='satellite'; btn.textContent='🛰 위성ON'; btn.className='tbtn tbtn-a';
+    mapType='satellite';
+    btn.textContent='🛰';
+    btn.style.background='#1a1a2e';
+    btn.title='위성 → 하이브리드';
   } else if(mapType==='satellite'){
-    mapType='hybrid'; btn.textContent='🗺 하이브리드'; btn.className='tbtn tbtn-a';
+    mapType='hybrid';
+    btn.textContent='🛰';
+    btn.style.background='#3b82f6';
+    btn.title='하이브리드 → 일반지도';
   } else {
-    mapType='map'; btn.textContent='🛰 위성'; btn.className='tbtn tbtn-n';
+    mapType='map';
+    btn.textContent='🗺';
+    btn.style.background='#fff';
+    btn.title='일반지도 → 위성';
   }
-  // 타일 전체 초기화 후 재로딩
   TC={};
   document.getElementById('tl').innerHTML='';
   draw();
