@@ -173,7 +173,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
 <canvas id="lassoCanvas"></canvas>
-<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:50;pointer-events:none"></canvas>
+<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:50;pointer-events:none;cursor:pointer"></canvas>
 <div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
 
 <div id="selPanel">
@@ -1167,7 +1167,9 @@ var mapEl=document.getElementById('map');
 function getXY(e){var t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
 
 // PC 이벤트 (박스 선택)
+var _ckX=0,_ckY=0; // 클릭 시작점 (드래그 구분용)
 mapEl.addEventListener('mousedown',function(e){
+  _ckX=e.clientX;_ckY=e.clientY;
   if(e.button!==0)return; // 왼쪽 클릭만
   if(selMode){
     e.preventDefault();
@@ -1239,6 +1241,8 @@ mapEl.addEventListener('dblclick',function(e){
 
 mapEl.onclick=function(e){
   if(selMode)return;
+  // 드래그한 경우 무시
+  if(Math.hypot(e.clientX-_ckX,e.clientY-_ckY)>5)return;
   var sx=e.clientX,sy=e.clientY;
   // 라인 클릭 감지
   var found=findNearestLine(sx,sy);
@@ -1246,7 +1250,7 @@ mapEl.onclick=function(e){
     selLine=found.idx;
     selLineData=found.item;
     drawLines();
-    showLinePop(found.item,sx,sy);
+    showLinePop(found.item,sx,sy,found.idx);
     return;
   }
   // 라인 선택 해제
