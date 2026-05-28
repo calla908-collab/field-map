@@ -332,7 +332,8 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 var DALL=[];
 var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
 var showLines=true;
-var hiddenLayers={'ZD001':true}; // ZD001 기본 숨김
+var hiddenLayers={}; // 지도 표시/숨김
+var hiddenFromStats={}; // 통계에서만 제외
 function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
 var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
@@ -572,7 +573,7 @@ function calcLayerStats(layerName){
   var lines=DLINES.filter(function(item){
     var tp=item.tp||item.type||'line';
     if(tp==='text')return false;
-    if(layerName==='ALL' && hiddenLayers[item.layer])return false; // 숨김 레이어 제외
+    if(layerName==='ALL' && (hiddenLayers[item.layer]||hiddenFromStats[item.layer]))return false; // 지도/통계 숨김 레이어 제외
     if(layerName!=='ALL' && item.layer!==layerName)return false;
     return true;
   });
@@ -686,14 +687,13 @@ function showLayerStats(){
       toggleRow.appendChild(lbl);
       layers.forEach(function(l){
         var wrap=document.createElement('label');
-        wrap.style.cssText='display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;background:'+(hiddenLayers[l]?'#f0f0f0':'#e8f4ff')+';color:'+(hiddenLayers[l]?'#aaa':'#0066cc');
+        wrap.style.cssText='display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;background:'+(hiddenFromStats[l]?'#f0f0f0':'#e8f4ff')+';color:'+(hiddenFromStats[l]?'#aaa':'#0066cc');
         var chk=document.createElement('input');
         chk.type='checkbox';
-        chk.checked=!hiddenLayers[l];
+        chk.checked=!hiddenFromStats[l];
         chk.style.cursor='pointer';
         chk.onchange=function(){
-          hiddenLayers[l]=!this.checked;
-          drawLines();
+          hiddenFromStats[l]=!this.checked; // 통계에서만 제외 (지도는 유지)
           renderStats(curLayer);
         };
         wrap.appendChild(chk);
@@ -819,6 +819,7 @@ function toggleLines(){
   if(btn){
     btn.style.background=showLines?'#e8f4ff':'#f0f0f0';
     btn.style.color=showLines?'#0066cc':'#aaa';
+    btn.textContent=showLines?'DXF':'DXF';
   }
   drawLines();
 }
