@@ -50,19 +50,12 @@ function fbLoad(){
         document.getElementById('fbDot').title='Firebase 실시간 연결됨';
         // ★ 라인 상태 실시간 리스너
         db.ref('projects/'+PROJ_ID+'/lineStatus').on('value',function(snap){
-          var raw=snap.val();
-          // Firebase 배열 변환 대응
-          if(Array.isArray(raw)){
-            var obj={};
-            raw.forEach(function(v,i){if(v!==null)obj['line_'+i]=v;});
-            lineStatus=obj;
-          } else {
-            lineStatus=raw||{};
-          }
+          lineStatus=snap.val()||{};
+          _lastLineStatus=JSON.stringify(lineStatus);
           drawLines();
-          // 통계 팝업 열려있으면 갱신
           var sm=document.getElementById('statsMod');
-          if(sm&&sm.style.display!=='none') showLayerStats();
+          if(sm&&sm.style.display!=='none')showLayerStats();
+          console.log('라인상태 실시간 업데이트');
         });
         // ★ 상태 실시간 리스너 (완료/담당자 변경 즉시 반영)
         db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
@@ -1457,15 +1450,21 @@ function pollStatus(){
     .catch(function(e){console.log('폴링 오류:',e);});
 }
 // 3초마다 폴링 (Firebase SDK on()과 병행)
-setInterval(pollStatus, 3000);
+setInterval(pollStatus, 2000);
 // 첫 로딩 즉시 1회 실행
-setTimeout(pollStatus, 1000);
+pollStatus();
+setTimeout(pollStatus, 500);
 
-// 라인 완료 상태 즉시 로딩 (Ctrl+Shift+R 후에도 Firebase에서 복원)
+// 라인 완료 상태 즉시 로딩
 fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/lineStatus.json',{cache:'no-store'})
   .then(function(r){return r.json();})
-  .then(function(d){if(d&&typeof d==='object'){lineStatus=d;drawLines();}})
-  .catch(function(){});
+  .then(function(d){
+    if(d&&typeof d==='object'){
+      lineStatus=d;
+      _lastLineStatus=JSON.stringify(d);
+      drawLines();
+    }
+  }).catch(function(){});
 
 // Firebase에서 DXF 라인 로딩
 fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
