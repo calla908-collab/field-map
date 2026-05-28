@@ -50,8 +50,19 @@ function fbLoad(){
         document.getElementById('fbDot').title='Firebase 실시간 연결됨';
         // ★ 라인 상태 실시간 리스너
         db.ref('projects/'+PROJ_ID+'/lineStatus').on('value',function(snap){
-          lineStatus=snap.val()||{};
+          var raw=snap.val();
+          // Firebase 배열 변환 대응
+          if(Array.isArray(raw)){
+            var obj={};
+            raw.forEach(function(v,i){if(v!==null)obj['line_'+i]=v;});
+            lineStatus=obj;
+          } else {
+            lineStatus=raw||{};
+          }
           drawLines();
+          // 통계 팝업 열려있으면 갱신
+          var sm=document.getElementById('statsMod');
+          if(sm&&sm.style.display!=='none') showLayerStats();
         });
         // ★ 상태 실시간 리스너 (완료/담당자 변경 즉시 반영)
         db.ref('projects/'+PROJ_ID+'/status').on('value',function(snap){
@@ -337,6 +348,7 @@ var hiddenFromStats={}; // 통계에서만 제외
 function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
 var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
+var _lastLineStatus='';
 
 // 라인 ID
 function lineId(idx){return 'line_'+idx;}
