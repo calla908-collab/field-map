@@ -360,6 +360,22 @@ var hiddenLayers={}; // 지도 표시/숨김
 var hiddenFromStats={}; // 통계에서만 제외
 function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
+var POS_KEY='mappos_'+PROJ_ID; // 위치 저장 키
+var _posFirstLoad=!localStorage.getItem(POS_KEY); // 첫 로딩 여부
+
+// 위치 저장 (이동/줌 후 호출)
+function savePos(){
+  try{localStorage.setItem(POS_KEY,JSON.stringify({cx:CX,cy:CY,z:Z}));}catch(e){}
+}
+
+// 저장된 위치 복원
+function restorePos(){
+  try{
+    var p=JSON.parse(localStorage.getItem(POS_KEY)||'null');
+    if(p&&p.z){CX=p.cx;CY=p.cy;Z=p.z;return true;}
+  }catch(e){}
+  return false;
+}
 var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
 var _lastLineStatus='';
 
@@ -981,8 +997,13 @@ function saveWorkerNames(){
 // 좌표변환
 function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
 function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
-// 초기 중심: 포인트 있으면 첫 포인트, 없으면 DXF 로딩 후 결정
+// 초기 위치: 저장된 위치 우선 복원
 (function(){
+  if(restorePos()){
+    // 저장된 위치로 복원 (재방문)
+    return;
+  }
+  // 첫 방문: 포인트 있으면 첫 포인트로
   if(DALL.length>0){
     var first=DALL[0];
     Z=17;
@@ -994,7 +1015,7 @@ function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(M
       }
     },800);
   }
-  // DALL 없으면 Z=7 한국 전체뷰 (DXF 로딩 후 재설정)
+  // 포인트도 없으면 한국 기본뷰 (DXF 로딩 후 첫 라인으로 이동)
 })();
 function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
 function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
@@ -1242,6 +1263,7 @@ mapEl.addEventListener('touchend',function(e){
     else if(selLine>=0){selLine=-1;selLineData=null;drawLines();document.getElementById('linePop').style.display='none';}
   }
   tp.on=0;
+  savePos(); // 위치 저장
 },{passive:true});
 mapEl.addEventListener('wheel',function(e){e.preventDefault();dz(e.deltaY<0?1:-1);},{passive:false});
 // PC 더블클릭 → 해당 위치로 화면 이동 + 줌인
@@ -1289,7 +1311,7 @@ mapEl.onclick=function(e){
   }
 };
 
-function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();}
+function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();savePos();}
 
 // 주소
 function getAddr(la,ln,cb){
@@ -1526,8 +1548,10 @@ fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/d
       }
     }
     draw();
-    // 첫 번째 라인으로 자동 이동 (최대 줌)
-    setTimeout(function(){flyToLineIdx(0, false);}, 300);
+    if(_posFirstLoad){
+      // 첫 방문: 첫 번째 라인으로 자동 이동 (최대 줌)
+      setTimeout(function(){flyToLineIdx(0, false);}, 300);
+    }
     console.log('DXF 로딩 완료:',DLINES.length,'개');
   }).catch(function(e){console.log('DXF 로딩 오류:',e);});
 </script></body></html>
