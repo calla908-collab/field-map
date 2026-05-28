@@ -361,7 +361,10 @@ var hiddenFromStats={}; // 통계에서만 제외
 function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
 var POS_KEY='mappos_'+PROJ_ID; // 위치 저장 키
-var _posFirstLoad=!localStorage.getItem(POS_KEY); // 첫 로딩 여부
+var _posFirstLoad=(function(){
+  try{return !localStorage.getItem(POS_KEY);}
+  catch(e){return true;}
+})(); // 첫 로딩 여부 (localStorage 없으면 true)
 
 // 위치 저장 (이동/줌 후 호출)
 function savePos(){
@@ -855,6 +858,7 @@ function flyToLineIdx(idx, keepStats){
   var c=ll2t(sla/pts.length,sln/pts.length,Z);CX=c.x;CY=c.y;
   selLine=idx;selLineData=item;
   draw();
+  savePos(); // 이동 후 위치 저장
   if(!keepStats)document.getElementById('statsMod').style.display='none';
 }
 
@@ -997,17 +1001,17 @@ function saveWorkerNames(){
 // 좌표변환
 function ll2t(la,ln,z){var n=Math.pow(2,z);return{x:(ln+180)/360*n,y:(1-Math.log(Math.tan(la*R)+1/Math.cos(la*R))/Math.PI)/2*n};}
 function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(Math.sinh(Math.PI*(1-2*ty/n)))/R,ln:ln};}
-// 초기 위치: 저장된 위치 우선 복원
+// 초기 위치: localStorage 복원 우선
 (function(){
-  if(restorePos()){
-    // 저장된 위치로 복원 (재방문)
-    return;
+  var restored=restorePos();
+  if(restored){
+    console.log('위치 복원:', Z, CX, CY);
+    return; // 저장된 위치로 복원
   }
   // 첫 방문: 포인트 있으면 첫 포인트로
   if(DALL.length>0){
-    var first=DALL[0];
     Z=17;
-    var c=ll2t(first[1],first[2],Z);CX=c.x;CY=c.y;
+    var c=ll2t(DALL[0][1],DALL[0][2],Z);CX=c.x;CY=c.y;
     setTimeout(function(){
       if(DALL.length>0){
         var d=DALL[0];var t=ll2t(d[1],d[2],Z);
@@ -1015,7 +1019,7 @@ function t2ll(tx,ty,z){var n=Math.pow(2,z),ln=tx/n*360-180;return{la:Math.atan(M
       }
     },800);
   }
-  // 포인트도 없으면 한국 기본뷰 (DXF 로딩 후 첫 라인으로 이동)
+  // 포인트 없으면 한국 기본뷰
 })();
 function p2s(tx,ty){return{x:(tx-CX)*256+W/2,y:(ty-CY)*256+H/2};}
 function s2t(sx,sy){return{x:sx/256+CX-W/512,y:sy/256+CY-H/512};}
@@ -1096,7 +1100,13 @@ function updateStats(){
   document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
   document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
 }
-function draw(){drawTiles();drawMarkers();updateStats();drawLines();}
+var _saveTimer=null;
+function draw(){
+  drawTiles();drawMarkers();updateStats();drawLines();
+  // 500ms 후 위치 저장 (throttle)
+  if(_saveTimer)clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(savePos,500);
+}
 
 // 모드전환
 function toggleMode(){
