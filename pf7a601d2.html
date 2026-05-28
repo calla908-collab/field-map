@@ -332,6 +332,8 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 var DALL=[];
 var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
 var showLines=true;
+var hiddenLayers={}; // {레이어명: true} → 숨김
+function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
 var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
 
@@ -371,6 +373,7 @@ function findNearestLine(sx,sy){
   for(var li=0;li<DLINES.length;li++){
     var item=DLINES[li];
     var tp=item.tp||item.type||'line';
+    if(!isLayerVisible(item.layer))return; // 숨긴 레이어 건너뜀
     if(tp==='text')continue;
     var pts=item.pts;
     if(!pts||pts.length<2)continue;
@@ -564,11 +567,15 @@ function getTileUrl(tx,ty,z,ntx){
 
 // 레이어별 통계 계산
 function calcLayerStats(layerName){
-  var lines=DLINES.filter(function(item,idx){
-    return (item.tp||item.type||'line')!=='text' && (layerName==='ALL'||item.layer===layerName);
+  var lines=DLINES.filter(function(item){
+    var tp=item.tp||item.type||'line';
+    if(tp==='text')return false;
+    if(layerName==='ALL' && hiddenLayers[item.layer])return false; // 숨김 레이어 제외
+    if(layerName!=='ALL' && item.layer!==layerName)return false;
+    return true;
   });
   var total=0,done=0,doneLen=0;
-  lines.forEach(function(item,i){
+  lines.forEach(function(item){
     var realIdx=DLINES.indexOf(item);
     var len=lineLength(item.pts||[]);
     total+=len;
@@ -578,15 +585,51 @@ function calcLayerStats(layerName){
          pct:total>0?Math.round(doneLen/total*100):0};
 }
 
+// 포인트 통계 (DXF 없는 사업용)
+function calcPointStats(){
+  var total=DALL.length,done=0;
+  DALL.forEach(function(d){if(isDone(d[0]))done++;});
+  return{total:total,done:done,pct:total>0?Math.round(done/total*100):0};
+}
+
 function showLayerStats(){
-  if(!DLINES||!DLINES.length){
-    alert('DXF 라인 데이터가 없어요.\nDXF 버튼을 켜거나 DXF가 있는 사업을 선택하세요.');
+  var hasDXF=DLINES&&DLINES.length>0;
+  var hasPts=DALL&&DALL.length>0;
+  if(!hasDXF&&!hasPts){alert('통계 데이터가 없어요.');return;}
+
+  // DXF 없고 포인트만 있는 경우 - 포인트 통계
+  if(!hasDXF&&hasPts){
+    var ps=calcPointStats();
+    document.getElementById('statsTotal').textContent='총 '+ps.total+'개 포인트';
+    document.getElementById('layerTabs').innerHTML='';
+    document.getElementById('statsBar').innerHTML=
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">'+
+      '<div style="background:#f0f9ff;border-radius:10px;padding:12px;text-align:center">'+
+        '<div style="font-size:24px;font-weight:800;color:#1a1a2e">'+ps.total+'</div>'+
+        '<div style="font-size:11px;color:#888;margin-top:4px">전체 포인트</div></div>'+
+      '<div style="background:#f0fff4;border-radius:10px;padding:12px;text-align:center">'+
+        '<div style="font-size:24px;font-weight:800;color:#2dc653">'+ps.done+'</div>'+
+        '<div style="font-size:11px;color:#888;margin-top:4px">완료</div></div>'+
+      '<div style="background:#fffbeb;border-radius:10px;padding:12px;text-align:center">'+
+        '<div style="font-size:24px;font-weight:800;color:#f97316">'+(ps.total-ps.done)+'</div>'+
+        '<div style="font-size:11px;color:#888;margin-top:4px">미완료</div></div>'+
+      '</div>'+
+      '<div style="margin-bottom:6px;display:flex;justify-content:space-between">'+
+        '<span style="font-size:12px;font-weight:700">진행률</span>'+
+        '<span style="font-size:14px;font-weight:800;color:#3b82f6">'+ps.pct+'%</span></div>'+
+      '<div style="background:#f0f0f0;border-radius:10px;height:16px;overflow:hidden">'+
+        '<div style="height:100%;background:linear-gradient(90deg,#2dc653,#60d394);width:'+ps.pct+'%;border-radius:10px"></div></div>';
+    document.getElementById('statsList').innerHTML='';
+    document.getElementById('statsMod').style.display='flex';
     return;
   }
+
+  // DXF 라인 통계
   // 레이어 목록 추출
   var layers=[];
   DLINES.forEach(function(item){
     var tp=item.tp||item.type||'line';
+    if(!isLayerVisible(item.layer))return; // 숨긴 레이어 건너뜀
     if(tp==='text')return;
     if(layers.indexOf(item.layer)<0)layers.push(item.layer);
   });
@@ -594,16 +637,46 @@ function showLayerStats(){
 
   function renderStats(layer){
     curLayer=layer;
-    // 탭 업데이트
+    // 탭 + 레이어 ON/OFF
     var tabs=document.getElementById('layerTabs');
     tabs.innerHTML='';
+    // 탭 버튼
+    var tabRow=document.createElement('div');
+    tabRow.style.cssText='display:flex;overflow-x:auto;width:100%';
     ['ALL'].concat(layers).forEach(function(l){
       var btn=document.createElement('button');
       btn.textContent=l==='ALL'?'전체':l;
-      btn.style.cssText='padding:10px 16px;border:none;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;background:'+(l===layer?'#1a1a2e':'transparent')+';color:'+(l===layer?'#FFEB00':'#666')+';border-bottom:3px solid '+(l===layer?'#FFEB00':'transparent');
+      btn.style.cssText='padding:10px 14px;border:none;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;background:'+(l===layer?'#1a1a2e':'transparent')+';color:'+(l===layer?'#FFEB00':'#666')+';border-bottom:3px solid '+(l===layer?'#FFEB00':'transparent');
       btn.onclick=function(){renderStats(l);};
-      tabs.appendChild(btn);
+      tabRow.appendChild(btn);
     });
+    tabs.appendChild(tabRow);
+    // 레이어 ON/OFF 토글 행
+    if(layers.length>1){
+      var toggleRow=document.createElement('div');
+      toggleRow.style.cssText='display:flex;gap:8px;padding:8px 12px;background:#f9f9f9;border-bottom:1px solid #eee;flex-wrap:wrap;align-items:center';
+      var lbl=document.createElement('span');
+      lbl.textContent='레이어:';
+      lbl.style.cssText='font-size:11px;color:#888;font-weight:600';
+      toggleRow.appendChild(lbl);
+      layers.forEach(function(l){
+        var wrap=document.createElement('label');
+        wrap.style.cssText='display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;background:'+(hiddenLayers[l]?'#f0f0f0':'#e8f4ff')+';color:'+(hiddenLayers[l]?'#aaa':'#0066cc');
+        var chk=document.createElement('input');
+        chk.type='checkbox';
+        chk.checked=!hiddenLayers[l];
+        chk.style.cursor='pointer';
+        chk.onchange=function(){
+          hiddenLayers[l]=!this.checked;
+          drawLines();
+          renderStats(curLayer);
+        };
+        wrap.appendChild(chk);
+        wrap.appendChild(document.createTextNode(l));
+        toggleRow.appendChild(wrap);
+      });
+      tabs.appendChild(toggleRow);
+    }
     // 통계 계산
     var s=calcLayerStats(layer);
     var pct=s.pct;
