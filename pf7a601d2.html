@@ -196,7 +196,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <!-- DXF 라인 팝업 -->
-<div id="linePop" style="display:none;position:fixed;z-index:500;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:200px" onclick="event.stopPropagation()">
+<div id="linePop" style="display:none;position:fixed;z-index:501;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.3);min-width:220px;border-left:4px solid #3b82f6" onclick="event.stopPropagation()">
   <button onclick="document.getElementById('linePop').style.display='none'" style="position:absolute;top:6px;right:10px;border:none;background:none;font-size:20px;color:#ccc;cursor:pointer">×</button>
   <div id="lpLayer" style="font-size:13px;font-weight:700;color:#333;margin-bottom:6px"></div>
   <div id="lpInfo" style="font-size:11px;color:#888;margin-bottom:10px"></div>
@@ -287,7 +287,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 var DALL=[];
 var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
 var showLines=true;
-var selLine=null; // 선택된 라인 인덱스
+var selLine=-1; // 선택된 라인 인덱스
 var selLineData=null; // 선택된 라인 데이터
 
 // 점-선분 거리
@@ -299,21 +299,24 @@ function distToSeg(px,py,ax,ay,bx,by){
 
 // 클릭 위치에서 가장 가까운 라인 찾기
 function findNearestLine(sx,sy){
-  if(!DLINES||!showLines)return null;
-  var best=null,bestDist=20; // 20px 이내
-  DLINES.forEach(function(item,idx){
-    if((item.tp||item.type)==='text')return;
+  if(!DLINES||!DLINES.length||!showLines)return null;
+  var bestIdx=-1,bestDist=30; // 30px 이내
+  for(var li=0;li<DLINES.length;li++){
+    var item=DLINES[li];
+    var tp=item.tp||item.type||'line';
+    if(tp==='text')continue;
     var pts=item.pts;
+    if(!pts||pts.length<2)continue;
     for(var i=0;i<pts.length-1;i++){
       var t1=ll2t(pts[i][0],pts[i][1],Z);
       var t2=ll2t(pts[i+1][0],pts[i+1][1],Z);
       var ax=(t1.x-CX)*256+W/2,ay=(t1.y-CY)*256+H/2;
       var bx=(t2.x-CX)*256+W/2,by=(t2.y-CY)*256+H/2;
       var d=distToSeg(sx,sy,ax,ay,bx,by);
-      if(d<bestDist){bestDist=d;best={idx:idx,item:item};}
+      if(d<bestDist){bestDist=d;bestIdx=li;}
     }
-  });
-  return best;
+  }
+  return bestIdx>=0?{idx:bestIdx,item:DLINES[bestIdx]}:null;
 }
 
 // 라인 중심으로 이동
@@ -382,8 +385,8 @@ function drawLines(){
         else ctx.lineTo(sx,sy);
       });
       ctx.stroke();
-      // 선택된 라인 강조
-      if(selLine===item){
+      // 선택된 라인 강조 (인덱스로 비교)
+      if(selLine>=0&&DLINES[selLine]===item){
         ctx.strokeStyle='#FFD700';
         ctx.lineWidth=(Z>=16?4:3);
         ctx.globalAlpha=0.95;
@@ -816,8 +819,8 @@ mapEl.addEventListener('touchend',function(e){
   if(!selMode&&!tp.on&&e.changedTouches.length===1){
     var t=e.changedTouches[0],sx=t.clientX,sy=t.clientY;
     var found=findNearestLine(sx,sy);
-    if(found){selLine=found.item;drawLines();showLinePop(found.item,sx,sy);}
-    else if(selLine){selLine=null;drawLines();document.getElementById('linePop').style.display='none';}
+    if(found){selLine=found.idx;selLineData=found.item;drawLines();showLinePop(found.item,sx,sy);}
+    else if(selLine>=0){selLine=-1;selLineData=null;drawLines();document.getElementById('linePop').style.display='none';}
   }
   tp.on=0;
 },{passive:true});
@@ -828,13 +831,14 @@ mapEl.onclick=function(e){
   // 라인 클릭 감지
   var found=findNearestLine(sx,sy);
   if(found){
-    selLine=found.item;
+    selLine=found.idx;
+    selLineData=found.item;
     drawLines();
     showLinePop(found.item,sx,sy);
     return;
   }
   // 라인 선택 해제
-  if(selLine){selLine=null;drawLines();document.getElementById('linePop').style.display='none';return;}
+  if(selLine>=0){selLine=-1;selLineData=null;drawLines();document.getElementById('linePop').style.display='none';return;}
   cPop();
 };
 
