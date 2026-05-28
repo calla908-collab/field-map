@@ -332,7 +332,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 var DALL=[];
 var DLINES=[];  // DXF 라인 데이터 [[{layer,pts:[[la,ln],...]}],...]
 var showLines=true;
-var hiddenLayers={}; // {레이어명: true} → 숨김
+var hiddenLayers={'ZD001':true}; // ZD001 기본 숨김
 function isLayerVisible(layer){return !hiddenLayers[layer];}
 var selLine=-1; // 선택된 라인 인덱스
 var lineStatus={}; // {line_0:{done:true}, line_1:{done:false}}
@@ -520,9 +520,11 @@ function drawLines(){
       // 라인 표시
       var pts=item.pts;
       if(!pts||pts.length<2)return;
+      var li2=DLINES.indexOf(item);
+      var done2=lineDone(li2);
       ctx.beginPath();
-      ctx.strokeStyle=color;
-      ctx.lineWidth=Z>=16?2.5:Z>=14?2:1.5;
+      ctx.strokeStyle=done2?'#2dc653':color;
+      ctx.lineWidth=(done2?2:1)*(Z>=16?2.5:Z>=14?2:1.5);
       ctx.globalAlpha=0.9;
       var first=true;
       pts.forEach(function(pt){
@@ -735,7 +737,7 @@ function showLayerStats(){
       var realIdx=DLINES.indexOf(item);
       var len=lineLength(item.pts||[]);
       var done=lineDone(realIdx);
-      html+='<div onclick="flyToLineIdx('+realIdx+')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:'+(done?'#f0fff4':'#f9f9f9')+';border:1px solid '+(done?'#86efac':'#e5e5e5')+'">'+
+      html+='<div ondblclick="flyToLineIdx('+realIdx+')" onclick="flyToLineIdx('+realIdx+')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:'+(done?'#f0fff4':'#f9f9f9')+';border:1px solid '+(done?'#86efac':'#e5e5e5')+'">'+
         '<div style="width:10px;height:10px;border-radius:50%;background:'+(done?'#2dc653':'#e63946')+';flex-shrink:0"></div>'+
         '<div style="flex:1;font-size:12px;font-weight:600;color:#333">'+item.layer+' - 라인 '+(i+1)+'</div>'+
         '<div style="font-size:12px;font-weight:700;color:'+(done?'#2dc653':'#3b82f6')+'">'+fmtLen(len)+'</div>'+
@@ -802,7 +804,9 @@ function flyToLineIdx(idx){
   if(!pts.length)return;
   var sla=0,sln=0;
   pts.forEach(function(p){sla+=p[0];sln+=p[1];});
-  if(Z<15){var nz=16,f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';}
+  // 최대 줌(18)으로
+  var nz=18,f=Math.pow(2,nz-Z);
+  CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';
   var c=ll2t(sla/pts.length,sln/pts.length,Z);CX=c.x;CY=c.y;
   selLine=idx;selLineData=item;
   draw();
@@ -1216,6 +1220,22 @@ mapEl.addEventListener('touchend',function(e){
   tp.on=0;
 },{passive:true});
 mapEl.addEventListener('wheel',function(e){e.preventDefault();dz(e.deltaY<0?1:-1);},{passive:false});
+// PC 더블클릭 → 해당 위치로 화면 이동 + 줌인
+mapEl.addEventListener('dblclick',function(e){
+  e.preventDefault();
+  var sx=e.clientX,sy=e.clientY;
+  var t=s2t(sx,sy);
+  var ll=t2ll(t.x,t.y,Z);
+  if(ll.la>30&&ll.la<40&&ll.ln>124&&ll.ln<132){
+    // 줌인 + 중앙 이동
+    var nz=Math.min(Z+1,18),f=Math.pow(2,nz-Z);
+    CX=(t.x)*f; CY=(t.y)*f; Z=nz;
+    TC={};document.getElementById('tl').innerHTML='';
+    draw();
+    document.getElementById('addrPop').style.display='none';
+  }
+});
+
 mapEl.onclick=function(e){
   if(selMode)return;
   var sx=e.clientX,sy=e.clientY;
@@ -1423,6 +1443,12 @@ function pollStatus(){
 setInterval(pollStatus, 3000);
 // 첫 로딩 즉시 1회 실행
 setTimeout(pollStatus, 1000);
+
+// 라인 완료 상태 즉시 로딩 (Ctrl+Shift+R 후에도 Firebase에서 복원)
+fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/lineStatus.json',{cache:'no-store'})
+  .then(function(r){return r.json();})
+  .then(function(d){if(d&&typeof d==='object'){lineStatus=d;drawLines();}})
+  .catch(function(){});
 
 // Firebase에서 DXF 라인 로딩
 fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
