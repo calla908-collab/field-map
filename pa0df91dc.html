@@ -4,6 +4,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>2026년김포시(상수)</title>
 <script>
+window.onerror=function(msg,src,line,col,err){
+  var el=document.getElementById('jsErr');
+  if(el){el.style.display='block';el.textContent='❌ JS오류: '+msg+' (줄'+line+')';}
+  return false;
+};
+window.addEventListener('unhandledrejection',function(e){
+  var el=document.getElementById('jsErr');
+  if(el){el.style.display='block';el.textContent='❌ Promise오류: '+(e.reason||e);}
+});
 var db=null,fbState={},PROJ_ID='pa0df91dc';
 // 담당자 이름 초기값 (localStorage)
 var WNAMES_KEY='fm_wnames_'+PROJ_ID;
@@ -290,6 +299,9 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
     <button class="pbtn" style="background:#fee2e2;color:#dc2626;font-size:12px;padding:7px" onclick="event.stopPropagation();deletePoint()">🗑 이 포인트 삭제</button>
   </div>
 </div>
+
+<!-- JS 오류 표시 -->
+<div id="jsErr" style="display:none;position:fixed;top:50px;left:10px;right:10px;z-index:9999;background:#dc2626;color:#fff;padding:12px;border-radius:8px;font-size:13px;font-weight:600"></div>
 
 <div id="tb">
   <h1>📍 2026년김포시(상수)</h1>
@@ -623,6 +635,7 @@ function drawLines(){
   ctx.globalAlpha=1.0;
 }
 var W=window.innerWidth,H=window.innerHeight;
+var _saveTimer=null;
 var Z=7,CX=0,CY=0,shOn=false,TC={};
 // 초기 중심: 대한민국 (DXF 로딩 전까지 기본 위치)
 (function(){var t=ll2t(36.5,127.5,Z);CX=t.x;CY=t.y;})();
@@ -1206,7 +1219,6 @@ function updateStats(){
   document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
   document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
 }
-var _saveTimer=null;
 function draw(){
   drawTiles();drawMarkers();updateStats();drawLines();
   // 500ms 후 위치 저장 (throttle)
