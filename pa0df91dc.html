@@ -11,7 +11,7 @@ window.onerror=function(msg,src,line,col,err){
 };
 
 // 레이어 패널 토글
-function toggleLayerPanel(){
+window.toggleLayerPanel=function(){
   var panel=document.getElementById('layerPanel');
   if(!panel){console.log('layerPanel 없음'); return;}
   var cur=window.getComputedStyle(panel).display;
@@ -24,7 +24,7 @@ function toggleLayerPanel(){
 }
 
 // 레이어 패널 내용 생성
-function buildLayerPanel(){
+window.buildLayerPanel=function(){
   var list=document.getElementById('layerList');
   if(!list)return;
   // 레이어 목록 추출
@@ -60,14 +60,14 @@ function buildLayerPanel(){
 }
 
 // 개별 레이어 토글
-function toggleLayer(layerName, visible){
+window.toggleLayer=function(layerName, visible){
   hiddenLayers[layerName]=!visible;
   drawLines();
   buildLayerPanel(); // 패널 갱신
 }
 
 // 전체 레이어 토글
-function toggleAllLayers(visible){
+window.toggleAllLayers=function(visible){
   var layers=[];
   (DLINES||[]).forEach(function(item){
     if((item.tp||item.type||'line')==='text')return;
@@ -544,7 +544,7 @@ function findNearestLine(sx,sy){
 
 // 라인 중심으로 이동
 // 주소 복사
-function copyAddr(){
+window.copyAddr=function(){
   var txt=document.getElementById('addrText').textContent;
   if(navigator.clipboard){navigator.clipboard.writeText(txt);}
   else{var el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}
@@ -588,7 +588,7 @@ function showAddrAt(la,ln,sx,sy){
     });
 }
 
-function flyToLine(){
+window.flyToLine=function(){
   if(!selLineData)return;
   document.getElementById('linePop').style.display='none';
   var pts=selLineData.pts;
@@ -622,7 +622,7 @@ function showLinePop(item,sx,sy,lineIdx){
 }
 
 // 라인 완료 토글
-function toggleLineDone(){
+window.toggleLineDone=function(){
   if(!selLineData)return;
   var idx5=selLine>=0?selLine:DLINES.indexOf(selLineData);
   var id=lineId(idx5);
@@ -750,7 +750,7 @@ function calcPointStats(){
   return{total:total,done:done,pct:total>0?Math.round(done/total*100):0};
 }
 
-function showLayerStats(){
+window.showLayerStats=function(){
   var hasDXF=DLINES&&DLINES.filter(function(d){return (d.tp||d.type||'line')!=='text';}).length>0;
   var hasPts=DALL&&DALL.length>0;
   if(!hasDXF&&!hasPts){
@@ -959,7 +959,7 @@ function showLayerStats(){
 }
 
 // 인덱스로 라인 이동
-function flyToLineIdx(idx, keepStats){
+window.flyToLineIdx=function(idx, keepStats){
   if(idx<0||idx>=DLINES.length)return;
   // 텍스트는 건너뜀 - 다음 라인으로
   while(idx<DLINES.length&&(DLINES[idx].tp||DLINES[idx].type||'line')==='text')idx++;
@@ -978,7 +978,7 @@ function flyToLineIdx(idx, keepStats){
   if(!keepStats)document.getElementById('statsMod').style.display='none';
 }
 
-function toggleLines(){
+window.toggleLines=function(){
   showLines=!showLines;
   var btn=document.getElementById('dxfBtn');
   if(btn){
@@ -989,14 +989,14 @@ function toggleLines(){
   drawLines();
 }
 
-function viewKorea(){
+window.viewKorea=function(){
   Z=7;
   var c=ll2t(36.0,127.5,Z);CX=c.x;CY=c.y;
   TC={};document.getElementById('tl').innerHTML='';
   draw();savePos();
 }
 
-function toggleMapType(){
+window.toggleMapType=function(){
   var btn=document.getElementById('mapTypeBtn');
   if(mapType==='map'){
     mapType='satellite';
@@ -1084,7 +1084,7 @@ function updateWorkerNames(){
     if(ft)ft.textContent=['🔵','🟠','🟣'][i-1]+n.slice(0,3);
   });
 }
-function openSetting(){
+window.openSetting=function(){
   ['1','2','3'].forEach(function(i){document.getElementById('wn'+i).value=workerNames[i]||'담당자'+i;});
   document.getElementById('settingPop').style.display='flex';
 }
@@ -1231,7 +1231,7 @@ function draw(){
 }
 
 // 모드전환
-function toggleMode(){
+window.toggleMode=function(){
   selMode=!selMode;
   var btn=document.getElementById('modeBtn'),m=document.getElementById('map');
   var rb=document.getElementById('resetBar');
@@ -1583,7 +1583,7 @@ function flyTo(la,ln,nm){
     if(d){sPop(d,W/2,H/2);}
   },400);
 }
-function togSh(){shOn?closeSh():openSh();}
+window.togSh=function(){shOn?closeSh():openSh();}
 function openSh(){shOn=true;document.getElementById('sh').classList.add('on');}
 function closeSh(){shOn=false;document.getElementById('sh').classList.remove('on');}
 var sx2=0;
