@@ -572,11 +572,12 @@ function drawLines(){
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);
   if(!showLines||!DLINES||!DLINES.length)return;
-  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
   DLINES.forEach(function(item){
     var idx3=DLINES.indexOf(item);
     var isDone3=lineDone(idx3);
-    var color=isDone3?'#2dc653':(layerColors[item.layer]||'#FF6600');
+    // CAD 색상 우선 (DXF 업로드 시 추출), 없으면 파란색
+    var baseColor=item.color||'#3b82f6';
+    var color=isDone3?'#2dc653':baseColor;
     if(item.tp==='text'||item.type==='text'){
       // 텍스트 표시
       if(!item.pts||!item.pts[0])return;
@@ -599,7 +600,7 @@ function drawLines(){
       var done2=lineDone(li2);
       ctx.beginPath();
       ctx.strokeStyle=done2?'#2dc653':color;
-      ctx.lineWidth=(done2?2:1)*(Z>=16?2.5:Z>=14?2:1.5);
+      ctx.lineWidth=(done2?6:3)*(Z>=16?2.5:Z>=14?2:1.5);
       ctx.globalAlpha=0.9;
       var first=true;
       pts.forEach(function(pt){
@@ -1585,4 +1586,9 @@ fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/d
     }
     console.log('DXF 로딩 완료:',DLINES.length,'개');
   }).catch(function(e){console.log('DXF 로딩 오류:',e);});
-</script></body></html>
+</script>
+
+<!-- 제작자 크레딧 -->
+<div style="position:fixed;bottom:6px;right:10px;z-index:90;font-size:10px;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.3);padding:3px 9px;border-radius:10px;pointer-events:none;letter-spacing:0.5px">Dev. Seo Young Min</div>
+
+</body></html>
