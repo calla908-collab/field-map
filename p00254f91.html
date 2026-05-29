@@ -4,6 +4,84 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>MMS측량(광주)</title>
 <script>
+window.onerror=function(msg,src,line,col,err){
+  var el=document.getElementById('jsErr');
+  if(el){el.style.display='block';el.textContent='❌ JS오류: '+msg+' (줄'+line+')';}
+  return true;
+};
+
+// 레이어 패널 토글
+function toggleLayerPanel(){
+  var panel=document.getElementById('layerPanel');
+  if(!panel){console.log('layerPanel 없음'); return;}
+  var cur=window.getComputedStyle(panel).display;
+  if(cur==='none'||!panel.style.display||panel.style.display==='none'){
+    buildLayerPanel();
+    panel.style.display='flex';
+  } else {
+    panel.style.display='none';
+  }
+}
+
+// 레이어 패널 내용 생성
+function buildLayerPanel(){
+  var list=document.getElementById('layerList');
+  if(!list)return;
+  // 레이어 목록 추출
+  var layers=[];
+  (DLINES||[]).forEach(function(item){
+    if((item.tp||item.type||'line')==='text')return;
+    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
+  });
+  if(!layers.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:#aaa">레이어 없음</div>';return;}
+  var html='';
+  // 전체 토글
+  var allOn=layers.every(function(l){return !hiddenLayers[l];});
+  html+='<div style="padding:6px 14px;border-bottom:1px solid #f0f0f0">';
+  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
+  html+='<input type="checkbox" id="layerAll" '+(allOn?'checked':'')+'  onchange="toggleAllLayers(this.checked)">';
+  html+='<span style="font-size:12px;font-weight:700;color:#333">전체</span></label></div>';
+  // 레이어별
+  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
+  layers.forEach(function(l){
+    var visible=!hiddenLayers[l];
+    var color=layerColors[l]||'#666';
+    // 라인 수 계산
+    var cnt=DLINES.filter(function(d){return d.layer===l&&(d.tp||d.type||'line')!=='text';}).length;
+    html+='<div style="padding:6px 14px;border-bottom:1px solid #f9f9f9">';
+    html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
+    html+='<input type="checkbox" data-lyr="'+l+'" '+(visible?'checked':'')+' onchange="toggleLayer(this.getAttribute(\'data-lyr\'),'+(!visible)+')">';
+    html+='<div style="width:20px;height:4px;background:'+color+';border-radius:2px;flex-shrink:0"></div>';
+    html+='<span style="font-size:12px;font-weight:600;color:'+(visible?'#333':'#aaa')+';flex:1">'+l+'</span>';
+    html+='<span style="font-size:10px;color:#aaa">'+cnt+'개</span>';
+    html+='</label></div>';
+  });
+  list.innerHTML=html;
+}
+
+// 개별 레이어 토글
+function toggleLayer(layerName, visible){
+  hiddenLayers[layerName]=!visible;
+  drawLines();
+  buildLayerPanel(); // 패널 갱신
+}
+
+// 전체 레이어 토글
+function toggleAllLayers(visible){
+  var layers=[];
+  (DLINES||[]).forEach(function(item){
+    if((item.tp||item.type||'line')==='text')return;
+    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
+  });
+  layers.forEach(function(l){hiddenLayers[l]=!visible;});
+  drawLines();
+  buildLayerPanel();
+}
+
+window.addEventListener('unhandledrejection',function(e){
+  var el=document.getElementById('jsErr');
+  if(el){el.style.display='block';el.textContent='❌ Promise오류: '+(e.reason||e);}
+});
 var db=null,fbState={},PROJ_ID='p00254f91';
 // 담당자 이름 초기값 (localStorage)
 var WNAMES_KEY='fm_wnames_'+PROJ_ID;
@@ -156,7 +234,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
 .pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer}
 /* 상단바 */
-#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
+#tb{position:fixed;top:0;left:0;right:0;z-index:1000;pointer-events:all;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
 #tb h1{font-size:13px;font-weight:700;color:#1a0a00;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 #si{flex:1;min-width:60px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:13px;color:#1a0a00;outline:none}
 .tbtn{border:none;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
@@ -184,7 +262,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .lw1{background:#3b82f6;color:#fff}.lw2{background:#f97316;color:#fff}.lw3{background:#a855f7;color:#fff}
 .lcoord{font-size:10px;color:#aaa;margin-top:1px}
 /* 담당자 설정 팝업 */
-#settingPop{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+#settingPop{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
 #settingBox{background:#fff;border-radius:16px;padding:20px;width:300px;max-width:90vw}
 #settingBox h3{font-size:15px;font-weight:700;margin-bottom:16px}
 .wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -196,8 +274,8 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </style>
 
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
-<canvas id="lassoCanvas"></canvas>
-<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:50;pointer-events:none;cursor:pointer"></canvas>
+<canvas id="lassoCanvas" style="position:fixed;inset:0;z-index:200;pointer-events:none;display:none"></canvas>
+<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:10;pointer-events:none;cursor:pointer"></canvas>
 <div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
 
 <div id="selPanel">
@@ -235,6 +313,28 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
+<!-- 레이어 관리 패널 (CAD 스타일) -->
+<div id="layerPanel" onclick="event.stopPropagation()" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
+  <!-- 헤더 -->
+  <div style="background:#1a1a2e;color:#FFEB00;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="font-size:15px;font-weight:700">📋 레이어 관리</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="toggleAllLayers(true)" style="background:#2dc653;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 ON</button>
+      <button onclick="toggleAllLayers(false)" style="background:#e63946;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 OFF</button>
+      <button onclick="toggleLayerPanel()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer">✕ 닫기</button>
+    </div>
+  </div>
+  <!-- 컬럼 헤더 -->
+  <div style="display:grid;grid-template-columns:44px 1fr 60px 60px;background:#f4f4f4;border-bottom:2px solid #e0e0e0;padding:6px 14px;flex-shrink:0">
+    <div style="font-size:11px;font-weight:700;color:#888">표시</div>
+    <div style="font-size:11px;font-weight:700;color:#888">레이어명</div>
+    <div style="font-size:11px;font-weight:700;color:#888;text-align:center">색상</div>
+    <div style="font-size:11px;font-weight:700;color:#888;text-align:right">개수</div>
+  </div>
+  <!-- 레이어 목록 -->
+  <div id="layerList" style="overflow-y:auto;flex:1"></div>
+</div>
+
 <!-- DXF 라인 팝업 -->
 <div id="linePop" style="display:none;position:fixed;z-index:501;background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 6px 28px rgba(0,0,0,.3);min-width:220px;border-left:4px solid #3b82f6" onclick="event.stopPropagation()">
   <button onclick="document.getElementById('linePop').style.display='none'" style="position:absolute;top:6px;right:10px;border:none;background:none;font-size:20px;color:#ccc;cursor:pointer">×</button>
@@ -269,12 +369,14 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
+<div id="jsErr" onclick="this.style.display='none'" style="display:none;position:fixed;top:58px;left:0;right:0;z-index:9999;background:#dc2626;color:#fff;padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer"></div>
 <div id="tb">
   <h1>📍 MMS측량(광주)</h1>
   <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn" onclick="showLayerStats()" style="background:#f97316;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📊</button>
+  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📋 레이어</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
 <div id="bd">
@@ -290,6 +392,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button onclick="dz(-1)">−</button>
   <button id="dxfBtn" onclick="toggleLines()" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc" title="DXF 라인 표시/숨김" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc;display:none">DXF</button>
   <button id="mapTypeBtn" onclick="toggleMapType()" style="font-size:18px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="지도/위성 전환">🗺</button>
+  <button onclick="viewKorea()" style="font-size:11px;font-weight:700;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#333;line-height:1.2" title="대한민국 전체보기">🇰🇷<br>전체</button>
 </div>
 <div id="legend">
   <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
@@ -317,7 +420,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 
 <!-- 담당자 이름 설정 -->
 <!-- 레이어 통계 모달 -->
-<div id="statsMod" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+<div id="statsMod" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;width:min(520px,95vw);max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.3)">
     <!-- 헤더 -->
     <div style="padding:16px 20px;background:#1a1a2e;color:#FFEB00;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -599,6 +702,7 @@ function drawLines(){
   ctx.globalAlpha=1.0;
 }
 var W=window.innerWidth,H=window.innerHeight;
+var _saveTimer=null;
 var Z=7,CX=0,CY=0,shOn=false,TC={};
 // 초기 중심: 대한민국 (DXF 로딩 전까지 기본 위치)
 (function(){var t=ll2t(36.5,127.5,Z);CX=t.x;CY=t.y;})();
@@ -642,9 +746,16 @@ function calcPointStats(){
 }
 
 function showLayerStats(){
-  var hasDXF=DLINES&&DLINES.length>0;
+  var hasDXF=DLINES&&DLINES.filter(function(d){return (d.tp||d.type||'line')!=='text';}).length>0;
   var hasPts=DALL&&DALL.length>0;
-  if(!hasDXF&&!hasPts){alert('통계 데이터가 없어요.');return;}
+  if(!hasDXF&&!hasPts){
+    document.getElementById('statsTotal').textContent='데이터 없음';
+    document.getElementById('layerTabs').innerHTML='';
+    document.getElementById('statsBar').innerHTML='<div style="padding:20px;text-align:center;color:#aaa">포인트 또는 DXF 라인 데이터가 없어요</div>';
+    document.getElementById('statsList').innerHTML='';
+    document.getElementById('statsMod').style.display='flex';
+    return;
+  }
 
   // DXF 없고 포인트만 있는 경우 - 포인트 통계
   if(!hasDXF&&hasPts){
@@ -871,6 +982,13 @@ function toggleLines(){
     btn.textContent=showLines?'DXF':'DXF';
   }
   drawLines();
+}
+
+function viewKorea(){
+  Z=7;
+  var c=ll2t(36.0,127.5,Z);CX=c.x;CY=c.y;
+  TC={};document.getElementById('tl').innerHTML='';
+  draw();savePos();
 }
 
 function toggleMapType(){
@@ -1100,7 +1218,6 @@ function updateStats(){
   document.getElementById('w1c').textContent=w1;document.getElementById('w2c').textContent=w2;
   document.getElementById('w3c').textContent=w3;document.getElementById('dnc').textContent=dn;
 }
-var _saveTimer=null;
 function draw(){
   drawTiles();drawMarkers();updateStats();drawLines();
   // 500ms 후 위치 저장 (throttle)
@@ -1289,6 +1406,7 @@ mapEl.addEventListener('dblclick',function(e){
     TC={};document.getElementById('tl').innerHTML='';
     draw();
     document.getElementById('addrPop').style.display='none';
+  document.getElementById('layerPanel').style.display='none';
   }
 });
 
@@ -1525,7 +1643,7 @@ fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/l
     }
   }).catch(function(){});
 
-// Firebase에서 DXF 라인 로딩 (배열/객체 모두 처리)
+// Firebase에서 DXF 라인 로딩
 fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
   .then(function(r){return r.json();})
   .then(function(raw){
