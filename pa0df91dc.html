@@ -96,7 +96,7 @@ function fbLoad(){
                 if(l.tp==='text'||l.type==='text')return;
                 (l.pts||[]).forEach(function(p){sla+=p[0];sln+=p[1];cnt++;});
               });
-              if(cnt>0){Z=15;var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;TC={};document.getElementById('tl').innerHTML='';}
+              if(cnt>0){Z=14;var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;TC={};document.getElementById('tl').innerHTML='';}
             }
             draw();
           }
@@ -1129,7 +1129,7 @@ function flyToLineIdx(idx, keepStats){
   if(!pts.length)return;
   var sla=0,sln=0;
   pts.forEach(function(p){sla+=p[0];sln+=p[1];});
-  var nz=18,f=Math.pow(2,nz-Z);
+  var nz=Math.min(16,Z+3),f=Math.pow(2,nz-Z);
   CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';
   var c=ll2t(sla/pts.length,sln/pts.length,Z);CX=c.x;CY=c.y;
   selLine=idx;selLineData=item;
@@ -1604,7 +1604,7 @@ mapEl.onclick=function(e){
   }
 };
 
-function dz(d){var nz=Math.max(5,Math.min(18,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();savePos();}
+function dz(d){var nz=Math.max(5,Math.min(16,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();savePos();}
 
 // 주소
 function getAddr(la,ln,cb){
