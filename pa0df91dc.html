@@ -156,7 +156,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .pbtn-undo{background:#f0f0f0;color:#666;font-size:12px;padding:7px}
 .pclose{position:absolute;top:8px;right:10px;border:none;background:none;font-size:22px;color:#ccc;cursor:pointer}
 /* 상단바 */
-#tb{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
+#tb{position:fixed;top:0;left:0;right:0;z-index:1000;pointer-events:all;background:rgba(255,235,0,.97);display:flex;align-items:center;gap:6px;padding:10px 12px}
 #tb h1{font-size:13px;font-weight:700;color:#1a0a00;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 #si{flex:1;min-width:60px;background:rgba(0,0,0,.12);border:none;border-radius:20px;padding:7px 12px;font-size:13px;color:#1a0a00;outline:none}
 .tbtn{border:none;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
@@ -184,7 +184,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 .lw1{background:#3b82f6;color:#fff}.lw2{background:#f97316;color:#fff}.lw3{background:#a855f7;color:#fff}
 .lcoord{font-size:10px;color:#aaa;margin-top:1px}
 /* 담당자 설정 팝업 */
-#settingPop{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+#settingPop{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
 #settingBox{background:#fff;border-radius:16px;padding:20px;width:300px;max-width:90vw}
 #settingBox h3{font-size:15px;font-weight:700;margin-bottom:16px}
 .wrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -197,7 +197,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
 <canvas id="lassoCanvas"></canvas>
-<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:50;pointer-events:none;cursor:pointer"></canvas>
+<canvas id="lineCanvas" style="position:fixed;inset:0;z-index:10;pointer-events:none;cursor:pointer"></canvas>
 <div id="boxRect" style="display:none;position:fixed;z-index:250;border:2.5px dashed #3b82f6;background:rgba(59,130,246,.08);pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(59,130,246,.3)"></div>
 
 <div id="selPanel">
@@ -313,6 +313,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button onclick="dz(-1)">−</button>
   <button id="dxfBtn" onclick="toggleLines()" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc" title="DXF 라인 표시/숨김" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc;display:none">DXF</button>
   <button id="mapTypeBtn" onclick="toggleMapType()" style="font-size:18px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="지도/위성 전환">🗺</button>
+  <button onclick="viewKorea()" style="font-size:11px;font-weight:700;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#333;line-height:1.2" title="대한민국 전체보기">🇰🇷<br>전체</button>
 </div>
 <div id="legend">
   <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
@@ -969,6 +970,13 @@ function toggleLines(){
     btn.textContent=showLines?'DXF':'DXF';
   }
   drawLines();
+}
+
+function viewKorea(){
+  Z=7;
+  var c=ll2t(36.0,127.5,Z);CX=c.x;CY=c.y;
+  TC={};document.getElementById('tl').innerHTML='';
+  draw();savePos();
 }
 
 function toggleMapType(){
