@@ -10,73 +10,6 @@ window.onerror=function(msg,src,line,col,err){
   return true;
 };
 
-// 레이어 패널 토글
-function toggleLayerPanel(){
-  var panel=document.getElementById('layerPanel');
-  if(!panel){console.log('layerPanel 없음'); return;}
-  var cur=window.getComputedStyle(panel).display;
-  if(cur==='none'||!panel.style.display||panel.style.display==='none'){
-    buildLayerPanel();
-    panel.style.display='flex';
-  } else {
-    panel.style.display='none';
-  }
-}
-
-// 레이어 패널 내용 생성
-function buildLayerPanel(){
-  var list=document.getElementById('layerList');
-  if(!list)return;
-  // 레이어 목록 추출
-  var layers=[];
-  (DLINES||[]).forEach(function(item){
-    if((item.tp||item.type||'line')==='text')return;
-    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
-  });
-  if(!layers.length){list.innerHTML='<div style="padding:12px 14px;font-size:12px;color:#aaa">레이어 없음</div>';return;}
-  var html='';
-  // 전체 토글
-  var allOn=layers.every(function(l){return !hiddenLayers[l];});
-  html+='<div style="padding:6px 14px;border-bottom:1px solid #f0f0f0">';
-  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
-  html+='<input type="checkbox" id="layerAll" '+(allOn?'checked':'')+'  onchange="toggleAllLayers(this.checked)">';
-  html+='<span style="font-size:12px;font-weight:700;color:#333">전체</span></label></div>';
-  // 레이어별
-  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
-  layers.forEach(function(l){
-    var visible=!hiddenLayers[l];
-    var color=layerColors[l]||'#666';
-    // 라인 수 계산
-    var cnt=DLINES.filter(function(d){return d.layer===l&&(d.tp||d.type||'line')!=='text';}).length;
-    html+='<div style="padding:6px 14px;border-bottom:1px solid #f9f9f9">';
-    html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer">';
-    html+='<input type="checkbox" data-lyr="'+l+'" '+(visible?'checked':'')+' onchange="toggleLayer(this.getAttribute(\'data-lyr\'),'+(!visible)+')">';
-    html+='<div style="width:20px;height:4px;background:'+color+';border-radius:2px;flex-shrink:0"></div>';
-    html+='<span style="font-size:12px;font-weight:600;color:'+(visible?'#333':'#aaa')+';flex:1">'+l+'</span>';
-    html+='<span style="font-size:10px;color:#aaa">'+cnt+'개</span>';
-    html+='</label></div>';
-  });
-  list.innerHTML=html;
-}
-
-// 개별 레이어 토글
-function toggleLayer(layerName, visible){
-  hiddenLayers[layerName]=!visible;
-  drawLines();
-  buildLayerPanel(); // 패널 갱신
-}
-
-// 전체 레이어 토글
-function toggleAllLayers(visible){
-  var layers=[];
-  (DLINES||[]).forEach(function(item){
-    if((item.tp||item.type||'line')==='text')return;
-    if(layers.indexOf(item.layer)<0)layers.push(item.layer);
-  });
-  layers.forEach(function(l){hiddenLayers[l]=!visible;});
-  drawLines();
-  buildLayerPanel();
-}
 
 window.addEventListener('unhandledrejection',function(e){
   var el=document.getElementById('jsErr');
@@ -313,11 +246,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
-<!-- 레이어 관리 패널 (CAD 스타일) -->
-<div id="layerPanel" onclick="event.stopPropagation()" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
-  <!-- 헤더 -->
-  <div style="background:#1a1a2e;color:#FFEB00;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-    <div style="font-size:15px;font-weight:700">📋 레이어 관리</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button onclick="toggleAllLayers(true)" style="background:#2dc653;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 ON</button>
       <button onclick="toggleAllLayers(false)" style="background:#e63946;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 OFF</button>
@@ -376,7 +304,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn" onclick="showLayerStats()" style="background:#f97316;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📊</button>
-  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📋 레이어</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
 <div id="bd">
@@ -581,11 +508,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
-<!-- 레이어 관리 패널 (CAD 스타일) -->
-<div id="layerPanel" onclick="event.stopPropagation()" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:600;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.35);width:min(560px,96vw);max-height:80vh;overflow:hidden;display:none;flex-direction:column">
-  <!-- 헤더 -->
-  <div style="background:#1a1a2e;color:#FFEB00;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-    <div style="font-size:15px;font-weight:700">📋 레이어 관리</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button onclick="toggleAllLayers(true)" style="background:#2dc653;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 ON</button>
       <button onclick="toggleAllLayers(false)" style="background:#e63946;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">전체 OFF</button>
@@ -644,7 +566,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button class="tbtn tbtn-n" id="modeBtn" onclick="toggleMode()">⬜ 범위선택</button>
   <button class="tbtn tbtn-n" onclick="openSetting()">⚙</button>
   <button class="tbtn" onclick="showLayerStats()" style="background:#f97316;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📊</button>
-  <button class="tbtn" id="tbLayerBtn" onclick="toggleLayerPanel()" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 10px;cursor:pointer">📋 레이어</button>
   <button class="tbtn tbtn-n" onclick="togSh()">☰</button>
 </div>
 <div id="bd">
@@ -1651,7 +1572,6 @@ mapEl.addEventListener('dblclick',function(e){
     TC={};document.getElementById('tl').innerHTML='';
     draw();
     document.getElementById('addrPop').style.display='none';
-  document.getElementById('layerPanel').style.display='none';
   }
 });
 
