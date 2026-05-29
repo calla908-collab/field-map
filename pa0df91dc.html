@@ -369,12 +369,6 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   </div>
 </div>
 
-<!-- 클릭 진단 -->
-<div id="clickDiag" onclick="this.textContent='✅ 클릭됨!';this.style.background='#2dc653'" style="position:fixed;bottom:60px;left:10px;z-index:9999;background:#1a1a2e;color:#FFEB00;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">👆 여기 클릭 테스트</div>
-
-<!-- JS 오류 표시 -->
-<div id="jsErr" style="display:none;position:fixed;top:50px;left:10px;right:10px;z-index:9999;background:#dc2626;color:#fff;padding:12px;border-radius:8px;font-size:13px;font-weight:600"></div>
-
 <div id="tb">
   <h1>📍 2026년김포시(상수)</h1>
   <input id="si" type="search" placeholder="검색..." oninput="srch(this.value)">
@@ -1648,17 +1642,10 @@ fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/l
     }
   }).catch(function(){});
 
-// Firebase에서 DXF 라인 로딩 (배열/객체 모두 처리)
-var _dxfUrl='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json';
-var _errEl=document.getElementById('jsErr');
-if(_errEl){_errEl.style.display='block';_errEl.style.background='#1a1a2e';_errEl.textContent='⏳ DXF 로딩 중... PROJ_ID='+PROJ_ID;}
-fetch(_dxfUrl,{cache:'no-store'})
+// Firebase에서 DXF 라인 로딩
+fetch('https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID+'/dxfLines.json',{cache:'no-store'})
   .then(function(r){return r.json();})
   .then(function(raw){
-    if(_errEl){
-      if(!raw){_errEl.textContent='⚠️ DXF 데이터 없음 (null). Firebase 경로: '+_dxfUrl;}
-      else{_errEl.style.background='#2dc653';_errEl.textContent='✅ DXF 원시데이터: '+typeof raw+(Array.isArray(raw)?'[배열,'+raw.length+'개]':'[객체,'+Object.keys(raw).length+'개]');}
-    }
     if(!raw)return;
     // Firebase가 배열을 객체로 변환할 수 있음 {"0":{...},"1":{...}}
     var data;
@@ -1692,7 +1679,6 @@ fetch(_dxfUrl,{cache:'no-store'})
       // 첫 방문: 첫 번째 라인으로 자동 이동 (최대 줌)
       setTimeout(function(){flyToLineIdx(0, false);}, 300);
     }
-    if(_errEl){_errEl.textContent='✅ DXF 로딩 완료: '+DLINES.length+'개 라인';}
     console.log('DXF 로딩 완료:',DLINES.length,'개');
   }).catch(function(e){console.log('DXF 로딩 오류:',e);});
 </script></body></html>
