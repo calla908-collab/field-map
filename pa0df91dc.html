@@ -96,7 +96,7 @@ function fbLoad(){
                 if(l.tp==='text'||l.type==='text')return;
                 (l.pts||[]).forEach(function(p){sla+=p[0];sln+=p[1];cnt++;});
               });
-              if(cnt>0){Z=14;var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;TC={};document.getElementById('tl').innerHTML='';}
+              if(cnt>0){Z=15;var c=ll2t(sla/cnt,sln/cnt,Z);CX=c.x;CY=c.y;TC={};document.getElementById('tl').innerHTML='';}
             }
             draw();
           }
@@ -899,7 +899,9 @@ var mapType='map'; // 'map' | 'satellite' | 'hybrid'
 
 function getTileUrl(tx,ty,z,ntx){
   if(mapType==='map'){
-    return 'https://map'+(Math.abs(tx+ty)%3+1)+'.daumcdn.net/map_2d_png/1906/L'+z+'/'+ty+'/'+ntx+'.png';
+    // OpenStreetMap - 무료, API키 없음, 어디서든 작동
+    var s=['a','b','c'][Math.abs(tx+ty)%3];
+    return 'https://'+s+'.tile.openstreetmap.org/'+z+'/'+ntx+'/'+ty+'.png';
   } else if(mapType==='satellite'){
     return 'https://mt'+(Math.abs(tx+ty)%4)+'.google.com/vt/lyrs=s&x='+ntx+'&y='+ty+'&z='+z;
   } else { // hybrid
@@ -1129,7 +1131,7 @@ function flyToLineIdx(idx, keepStats){
   if(!pts.length)return;
   var sla=0,sln=0;
   pts.forEach(function(p){sla+=p[0];sln+=p[1];});
-  var nz=Math.min(16,Z+3),f=Math.pow(2,nz-Z);
+  var nz=Math.min(18,Z+3),f=Math.pow(2,nz-Z);
   CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';
   var c=ll2t(sla/pts.length,sln/pts.length,Z);CX=c.x;CY=c.y;
   selLine=idx;selLineData=item;
@@ -1321,7 +1323,7 @@ function drawTiles(){
     if(TC[k])continue;TC[k]=1;
     var img=new Image();img.className='tile';img.dataset.x=tx;img.dataset.y=ty;img.dataset.z=Z;img.dataset.ntx=ntx;img.dataset.ty2=ty;img.dataset.tz=Z;
     img.onerror=function(){if(this.dataset.tried)return;this.dataset.tried=1;this.src='https://a.tile.openstreetmap.org/'+this.dataset.tz+'/'+this.dataset.ntx+'/'+this.dataset.ty2+'.png';};
-    img.src=getTileUrl(tx,ty,Z,ntx);
+    img.crossOrigin='anonymous';img.src=getTileUrl(tx,ty,Z,ntx);
     var p=p2s(tx,ty);img.style.cssText='position:absolute;width:256px;height:256px;left:'+p.x+'px;top:'+p.y+'px';
     td.appendChild(img);
   }}
@@ -1604,7 +1606,7 @@ mapEl.onclick=function(e){
   }
 };
 
-function dz(d){var nz=Math.max(5,Math.min(16,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();savePos();}
+function dz(d){var nz=Math.max(5,Math.min(19,Z+d));if(nz===Z)return;var f=Math.pow(2,nz-Z);CX*=f;CY*=f;Z=nz;TC={};document.getElementById('tl').innerHTML='';draw();savePos();}
 
 // 주소
 function getAddr(la,ln,cb){
