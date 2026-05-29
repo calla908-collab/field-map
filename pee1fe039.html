@@ -572,11 +572,12 @@ function drawLines(){
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,H);
   if(!showLines||!DLINES||!DLINES.length)return;
-  var layerColors={'ZD001':'#FF4400','새한항업':'#0088FF','TZD001':'#FF8800','0':'#3366FF'};
   DLINES.forEach(function(item){
     var idx3=DLINES.indexOf(item);
     var isDone3=lineDone(idx3);
-    var color=isDone3?'#2dc653':(layerColors[item.layer]||'#FF6600');
+    // CAD 색상 우선 (DXF 업로드 시 추출), 없으면 파란색
+    var baseColor=item.color||'#3b82f6';
+    var color=isDone3?'#2dc653':baseColor;
     if(item.tp==='text'||item.type==='text'){
       // 텍스트 표시
       if(!item.pts||!item.pts[0])return;
