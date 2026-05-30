@@ -525,6 +525,9 @@ function showAddrAt(la,ln,sx,sy){
   pop.style.display='block';
   pop.style.left=Math.min(sx+10,W-180)+'px';
   pop.style.top=Math.max(sy-70,60)+'px';
+  // 카카오맵 링크 설정 (위도,경도로 바로 이동)
+  var kakaoLink=document.getElementById('addrKakao');
+  if(kakaoLink) kakaoLink.href='https://map.kakao.com/link/map/위치,'+la+','+ln;
 
   // Kakao SDK 시도
   var _timer=setTimeout(function(){
@@ -539,11 +542,11 @@ function showAddrAt(la,ln,sx,sy){
       if(status===kakao.maps.services.Status.OK&&result.length>0){
         var road=result[0].road_address;
         var jibun=result[0].address;
-        if(road&&road.address_name){
-          addr=road.address_name;
-          if(road.building_name)addr+=' ('+road.building_name+')';
-        }else if(jibun&&jibun.address_name){
+        // 지번주소 우선, 없으면 도로명
+        if(jibun&&jibun.address_name){
           addr=jibun.address_name;
+        }else if(road&&road.address_name){
+          addr=road.address_name;
         }
       }
       document.getElementById('addrText').textContent=addr||'주소를 찾을 수 없어요';
