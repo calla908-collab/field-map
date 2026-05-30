@@ -925,7 +925,8 @@ function toggleGPS(){
     _gpsWatchId=navigator.geolocation.watchPosition(function(p){
       _gpsLa=p.coords.latitude; _gpsLn=p.coords.longitude; _gpsAcc=p.coords.accuracy;
       draw();
-    },{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
+    },function(e){console.log('GPS 추적 오류:',e.message);},
+    {enableHighAccuracy:true,maximumAge:3000,timeout:10000});
   },function(err){
     document.getElementById('gpsBtn').textContent='📍';
     document.getElementById('gpsBtn').style.background='#fff';
