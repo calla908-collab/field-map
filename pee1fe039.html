@@ -320,6 +320,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <button id="dxfBtn" onclick="toggleLines()" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc" title="DXF 라인 표시/숨김" style="font-size:14px;font-weight:700;background:#e8f4ff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#0066cc;display:none">DXF</button>
   <button id="mapTypeBtn" onclick="toggleMapType()" style="font-size:18px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="지도/위성 전환">🗺</button>
   <button onclick="viewKorea()" style="font-size:11px;font-weight:700;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);color:#333;line-height:1.2" title="대한민국 전체보기">🇰🇷<br>전체</button>
+  <button id="gpsBtn" onclick="toggleGPS()" style="font-size:20px;background:#fff;border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)" title="현재 위치">📍</button>
 </div>
 <div id="legend">
   <div class="lg"><div class="lgd" style="background:#e63946"></div>미할당</div>
@@ -886,6 +887,76 @@ function toggleLines(){
     btn.textContent=showLines?'DXF':'DXF';
   }
   drawLines();
+}
+
+// ── GPS 현재 위치 ──────────────────────────
+var _gpsOn=false, _gpsWatchId=null, _gpsLa=null, _gpsLn=null, _gpsAcc=null;
+
+function toggleGPS(){
+  if(_gpsOn){
+    // GPS 끄기
+    if(_gpsWatchId!=null){navigator.geolocation.clearWatch(_gpsWatchId);_gpsWatchId=null;}
+    _gpsOn=false; _gpsLa=null; _gpsLn=null;
+    document.getElementById('gpsBtn').style.background='#fff';
+    document.getElementById('gpsBtn').style.boxShadow='0 2px 8px rgba(0,0,0,.2)';
+    draw();
+    return;
+  }
+  if(!navigator.geolocation){
+    alert('이 브라우저는 GPS를 지원하지 않아요.');return;
+  }
+  document.getElementById('gpsBtn').style.background='#e8f4ff';
+  document.getElementById('gpsBtn').textContent='⌛';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    _gpsOn=true;
+    _gpsLa=pos.coords.latitude;
+    _gpsLn=pos.coords.longitude;
+    _gpsAcc=pos.coords.accuracy;
+    document.getElementById('gpsBtn').textContent='📍';
+    document.getElementById('gpsBtn').style.background='#dbeafe';
+    document.getElementById('gpsBtn').style.boxShadow='0 0 0 2px #3b82f6';
+    // 현재 위치로 이동
+    var nz=Math.max(Z,15);
+    var f=Math.pow(2,nz-Z); CX*=f; CY*=f; Z=nz;
+    var c=ll2t(_gpsLa,_gpsLn,Z); CX=c.x; CY=c.y;
+    TC={}; document.getElementById('tl').innerHTML='';
+    draw();
+    // 실시간 추적
+    _gpsWatchId=navigator.geolocation.watchPosition(function(p){
+      _gpsLa=p.coords.latitude; _gpsLn=p.coords.longitude; _gpsAcc=p.coords.accuracy;
+      draw();
+    },{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
+  },function(err){
+    document.getElementById('gpsBtn').textContent='📍';
+    document.getElementById('gpsBtn').style.background='#fff';
+    document.getElementById('gpsBtn').style.boxShadow='0 2px 8px rgba(0,0,0,.2)';
+    var msg={1:'위치 권한을 허용해주세요.',2:'위치를 가져올 수 없어요.',3:'시간이 초과됐어요.'};
+    alert('GPS 오류: '+(msg[err.code]||err.message));
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+
+function drawGPS(ctx){
+  if(!_gpsOn||_gpsLa==null)return;
+  var c=ll2t(_gpsLa,_gpsLn,Z);
+  var sx=(c.x-CX)*256+W/2, sy=(c.y-CY)*256+H/2;
+  // 정확도 원
+  if(_gpsAcc){
+    var mpp=156543.03*Math.cos(_gpsLa*Math.PI/180)/Math.pow(2,Z);
+    var r=(_gpsAcc/mpp);
+    ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
+    ctx.fillStyle='rgba(59,130,246,0.12)';ctx.fill();
+    ctx.strokeStyle='rgba(59,130,246,0.35)';ctx.lineWidth=1;ctx.stroke();
+  }
+  // 외곽 흰 원
+  ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);
+  ctx.fillStyle='#fff';ctx.shadowColor='rgba(0,0,0,.3)';ctx.shadowBlur=6;ctx.fill();
+  ctx.shadowBlur=0;
+  // 파란 내부 원
+  ctx.beginPath();ctx.arc(sx,sy,9,0,Math.PI*2);
+  ctx.fillStyle='#3b82f6';ctx.fill();
+  // 중앙 흰 점
+  ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);
+  ctx.fillStyle='#fff';ctx.fill();
 }
 
 function viewKorea(){
