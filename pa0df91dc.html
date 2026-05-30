@@ -479,36 +479,42 @@ function showAddrAt(la,ln,sx,sy){
   var pop=document.getElementById('addrPop');
   document.getElementById('addrCoord').textContent=la.toFixed(6)+'  /  '+ln.toFixed(6);
   document.getElementById('addrText').textContent='주소 조회 중...';
-  document.getElementById('addrKakao').href='https://map.kakao.com/link/map/위치,'+la+','+ln;
-  pop.style.left=Math.min(sx+12,W-310)+'px';
-  pop.style.top=Math.max(Math.min(sy-60,H-180),58)+'px';
+  // 팝업 위치
   pop.style.display='block';
-  // Nominatim 역지오코딩
-  var k=la.toFixed(5)+','+ln.toFixed(5);
-  if(addrCache[k]){
-    document.getElementById('addrText').textContent=addrCache[k];
-    return;
-  }
-  fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko&zoom=18')
+  pop.style.left=Math.min(sx+10,W-180)+'px';
+  pop.style.top=Math.max(sy-70,60)+'px';
+
+  // 카카오 역지오코딩 API (도로명+지번 모두)
+  var KAKAO_KEY='814dca815cb12a51c6e6f748e0b7a9f0';
+  fetch('https://dapi.kakao.com/v2/local/geo/coord2address.json?x='+ln+'&y='+la+'&input_coord=WGS84',
+    {headers:{'Authorization':'KakaoAK '+KAKAO_KEY}})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d&&d.documents&&d.documents.length>0){
+      var doc=d.documents[0];
+      var road=doc.road_address;
+      var jibun=doc.address;
+      var addr='';
+      if(road&&road.address_name){
+        addr=road.address_name;
+        if(road.building_name) addr+=' ('+road.building_name+')';
+      } else if(jibun&&jibun.address_name){
+        addr=jibun.address_name;
+      }
+      document.getElementById('addrText').textContent=addr||'주소를 찾을 수 없어요';
+    } else {
+      document.getElementById('addrText').textContent='주소를 찾을 수 없어요';
+    }
+  }).catch(function(){
+    // 카카오 실패 시 Nominatim 백업
+    fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko')
     .then(function(r){return r.json();})
     .then(function(d){
-      var addr='주소를 찾을 수 없어요';
-      if(d&&d.address){
-        var a=d.address,p=[];
-        if(a.province||a.state)p.push(a.province||a.state);
-        if(a.city||a.county||a.town)p.push(a.city||a.county||a.town);
-        if(a.suburb||a.quarter||a.neighbourhood||a.village)p.push(a.suburb||a.quarter||a.neighbourhood||a.village);
-        if(a.road)p.push(a.road);
-        if(a.house_number)p.push(a.house_number);
-        addr=p.length?p.join(' '):(d.display_name||'주소 없음');
-      }
-      addrCache[k]=addr;
-      var el=document.getElementById('addrText');
-      if(el)el.textContent=addr;
+      document.getElementById('addrText').textContent=(d&&d.display_name)?d.display_name.split(',').slice(0,3).join(''):'주소 없음';
     }).catch(function(){
-      var el=document.getElementById('addrText');
-      if(el)el.textContent='주소 조회 실패';
+      document.getElementById('addrText').textContent='주소 조회 실패';
     });
+  });
 }
 
 function flyToLine(){
