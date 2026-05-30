@@ -475,44 +475,47 @@ function copyAddr(){
 }
 
 // 지도 클릭 → 주소 조회
+// 카카오 지오코더 초기화 (한번만)
+var _kakaoGeocoder=null;
+function _initKakaoGeocoder(cb){
+  if(_kakaoGeocoder){cb(_kakaoGeocoder);return;}
+  if(window.kakao&&window.kakao.maps&&window.kakao.maps.services){
+    _kakaoGeocoder=new kakao.maps.services.Geocoder();cb(_kakaoGeocoder);return;
+  }
+  var sc=document.createElement('script');
+  sc.src='//dapi.kakao.com/v2/maps/sdk.js?appkey=814dca815cb12a51c6e6f748e0b7a9f0&libraries=services&autoload=false';
+  sc.onload=function(){
+    kakao.maps.load(function(){
+      _kakaoGeocoder=new kakao.maps.services.Geocoder();cb(_kakaoGeocoder);
+    });
+  };
+  document.head.appendChild(sc);
+}
+
 function showAddrAt(la,ln,sx,sy){
   var pop=document.getElementById('addrPop');
   document.getElementById('addrCoord').textContent=la.toFixed(6)+'  /  '+ln.toFixed(6);
   document.getElementById('addrText').textContent='주소 조회 중...';
-  // 팝업 위치
   pop.style.display='block';
   pop.style.left=Math.min(sx+10,W-180)+'px';
   pop.style.top=Math.max(sy-70,60)+'px';
 
-  // 카카오 역지오코딩 API (도로명+지번 모두)
-  var KAKAO_KEY='814dca815cb12a51c6e6f748e0b7a9f0';
-  fetch('https://dapi.kakao.com/v2/local/geo/coord2address.json?x='+ln+'&y='+la+'&input_coord=WGS84',
-    {headers:{'Authorization':'KakaoAK '+KAKAO_KEY}})
-  .then(function(r){return r.json();})
-  .then(function(d){
-    if(d&&d.documents&&d.documents.length>0){
-      var doc=d.documents[0];
-      var road=doc.road_address;
-      var jibun=doc.address;
-      var addr='';
-      if(road&&road.address_name){
-        addr=road.address_name;
-        if(road.building_name) addr+=' ('+road.building_name+')';
-      } else if(jibun&&jibun.address_name){
-        addr=jibun.address_name;
+  _initKakaoGeocoder(function(geocoder){
+    geocoder.coord2Address(ln,la,function(result,status){
+      if(status===kakao.maps.services.Status.OK&&result.length>0){
+        var road=result[0].road_address;
+        var jibun=result[0].address;
+        var addr='';
+        if(road&&road.address_name){
+          addr=road.address_name;
+          if(road.building_name) addr+=' ('+road.building_name+')';
+        } else if(jibun&&jibun.address_name){
+          addr=jibun.address_name;
+        }
+        document.getElementById('addrText').textContent=addr||'주소 없음';
+      } else {
+        document.getElementById('addrText').textContent='주소를 찾을 수 없어요';
       }
-      document.getElementById('addrText').textContent=addr||'주소를 찾을 수 없어요';
-    } else {
-      document.getElementById('addrText').textContent='주소를 찾을 수 없어요';
-    }
-  }).catch(function(){
-    // 카카오 실패 시 Nominatim 백업
-    fetch('https://nominatim.openstreetmap.org/reverse?lat='+la+'&lon='+ln+'&format=json&accept-language=ko')
-    .then(function(r){return r.json();})
-    .then(function(d){
-      document.getElementById('addrText').textContent=(d&&d.display_name)?d.display_name.split(',').slice(0,3).join(''):'주소 없음';
-    }).catch(function(){
-      document.getElementById('addrText').textContent='주소 조회 실패';
     });
   });
 }
@@ -607,7 +610,7 @@ function drawLines(){
       var done2=lineDone(li2);
       ctx.beginPath();
       ctx.strokeStyle=done2?'#2dc653':color;
-      ctx.lineWidth=(done2?6:3)*(Z>=16?2.5:Z>=14?2:1.5);
+      ctx.lineWidth=(done2?2:1)*(Z>=16?2.5:Z>=14?2:1.5);
       ctx.globalAlpha=0.9;
       var first=true;
       pts.forEach(function(pt){
