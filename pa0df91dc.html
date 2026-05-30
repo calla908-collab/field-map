@@ -907,46 +907,56 @@ function toggleGPS(){
   }
   document.getElementById('gpsBtn').style.background='#e8f4ff';
   document.getElementById('gpsBtn').textContent='⌛';
-  navigator.geolocation.getCurrentPosition(function(pos){
-    _gpsOn=true;
-    _gpsLa=pos.coords.latitude;
-    _gpsLn=pos.coords.longitude;
-    _gpsAcc=pos.coords.accuracy;
-    document.getElementById('gpsBtn').textContent='📍';
-    document.getElementById('gpsBtn').style.background='#dbeafe';
-    document.getElementById('gpsBtn').style.boxShadow='0 0 0 2px #3b82f6';
-    // 현재 위치로 이동
-    var nz=Math.max(Z,15);
-    var f=Math.pow(2,nz-Z); CX*=f; CY*=f; Z=nz;
-    var c=ll2t(_gpsLa,_gpsLn,Z); CX=c.x; CY=c.y;
-    TC={}; document.getElementById('tl').innerHTML='';
-    draw();
-    // 실시간 추적
-    _gpsWatchId=navigator.geolocation.watchPosition(function(p){
-      _gpsLa=p.coords.latitude; _gpsLn=p.coords.longitude; _gpsAcc=p.coords.accuracy;
+  var _gpsBest=null; // 가장 정확한 위치 저장
+  // watchPosition으로 바로 시작 - 정확도 개선될 때마다 업데이트
+  _gpsWatchId=navigator.geolocation.watchPosition(function(pos){
+    var acc=pos.coords.accuracy;
+    // 이전보다 정확하거나 첫 수신
+    if(!_gpsOn||!_gpsBest||acc<_gpsBest){
+      _gpsBest=acc;
+      _gpsLa=pos.coords.latitude;
+      _gpsLn=pos.coords.longitude;
+      _gpsAcc=acc;
+      if(!_gpsOn){
+        // 첫 위치 수신 시 지도 이동
+        _gpsOn=true;
+        var nz=Math.max(Z,16);
+        var f=Math.pow(2,nz-Z); CX*=f; CY*=f; Z=nz;
+        var c=ll2t(_gpsLa,_gpsLn,Z); CX=c.x; CY=c.y;
+        TC={}; document.getElementById('tl').innerHTML='';
+      }
+      // 정확도 표시
+      var accTxt=acc<20?'📍':acc<50?'🔵':acc<100?'🟡':'🔴';
+      document.getElementById('gpsBtn').textContent=accTxt;
+      document.getElementById('gpsBtn').style.background='#dbeafe';
+      document.getElementById('gpsBtn').style.boxShadow='0 0 0 2px #3b82f6';
+      document.getElementById('gpsBtn').title='현재위치 (정확도: '+Math.round(acc)+'m)';
       draw();
-    },function(e){console.log('GPS 추적 오류:',e.message);},
-    {enableHighAccuracy:true,maximumAge:3000,timeout:10000});
+    }
   },function(err){
     document.getElementById('gpsBtn').textContent='📍';
     document.getElementById('gpsBtn').style.background='#fff';
     document.getElementById('gpsBtn').style.boxShadow='0 2px 8px rgba(0,0,0,.2)';
-    var msg={1:'위치 권한을 허용해주세요.',2:'위치를 가져올 수 없어요.',3:'시간이 초과됐어요.'};
-    alert('GPS 오류: '+(msg[err.code]||err.message));
-  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+    if(!_gpsOn){
+      var msg={1:'위치 권한을 허용해주세요.',2:'위치를 가져올 수 없어요.',3:'시간이 초과됐어요.'};
+      alert('GPS 오류: '+(msg[err.code]||err.message));
+    }
+  },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
 }
 
 function drawGPS(ctx){
   if(!_gpsOn||_gpsLa==null)return;
   var c=ll2t(_gpsLa,_gpsLn,Z);
   var sx=(c.x-CX)*256+W/2, sy=(c.y-CY)*256+H/2;
-  // 정확도 원
+  // 정확도 원 (최대 60px로 제한)
   if(_gpsAcc){
     var mpp=156543.03*Math.cos(_gpsLa*Math.PI/180)/Math.pow(2,Z);
-    var r=(_gpsAcc/mpp);
-    ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
-    ctx.fillStyle='rgba(59,130,246,0.12)';ctx.fill();
-    ctx.strokeStyle='rgba(59,130,246,0.35)';ctx.lineWidth=1;ctx.stroke();
+    var r=Math.min(_gpsAcc/mpp, 60);
+    if(r>16){
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.fillStyle='rgba(59,130,246,0.10)';ctx.fill();
+      ctx.strokeStyle='rgba(59,130,246,0.30)';ctx.lineWidth=1;ctx.stroke();
+    }
   }
   // 외곽 흰 원
   ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);
