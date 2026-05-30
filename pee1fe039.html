@@ -1196,6 +1196,12 @@ function updateStats(){
 }
 function draw(){
   drawTiles();drawMarkers();updateStats();drawLines();
+  // GPS는 항상 표시 (DXF 라인 유무 무관)
+  var lcv=document.getElementById('lineCanvas');
+  if(lcv&&_gpsOn){
+    var ctx2=lcv.getContext('2d');
+    drawGPS(ctx2);
+  }
   // 500ms 후 위치 저장 (throttle)
   if(_saveTimer)clearTimeout(_saveTimer);
   _saveTimer=setTimeout(savePos,500);
