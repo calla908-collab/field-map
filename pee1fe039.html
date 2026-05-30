@@ -241,7 +241,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
   <div style="font-size:11px;color:#aaa;margin-bottom:3px" id="addrCoord"></div>
   <div style="font-size:13px;font-weight:600;color:#333;line-height:1.5;margin-bottom:10px" id="addrText">주소 조회 중...</div>
   <div style="display:flex;gap:6px">
-    <a id="addrKakao" target="_blank" style="flex:1;padding:8px;background:#FFEB00;color:#1a0a00;border-radius:8px;font-size:12px;font-weight:700;text-align:center;text-decoration:none">📍 카카오맵</a>
+    <button id="addrKakao" onclick="openKakaoMap()" style="flex:1;padding:8px;background:#FFEB00;color:#1a0a00;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">📍 카카오맵</button>
     <button onclick="copyAddr()" style="flex:1;padding:8px;background:#f0f0f0;color:#444;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">📋 주소복사</button>
   </div>
 </div>
@@ -477,6 +477,13 @@ function copyAddr(){
 // 지도 클릭 → 주소 조회
 // 주소 조회 - Nominatim 즉시 + Kakao SDK 병렬
 var _kakaoGeocoder=null, _kakaoReady=false, _kakaoFailed=false;
+var _addrLa=0, _addrLn=0; // 현재 팝업 좌표
+
+function openKakaoMap(){
+  // 모바일: 카카오맵 앱, PC: 브라우저
+  var url='https://map.kakao.com/link/map/현위치,'+_addrLa+','+_addrLn;
+  window.open(url,'_blank');
+}
 
 function _loadKakaoSDK(cb){
   if(_kakaoFailed){cb(null);return;}
@@ -525,9 +532,7 @@ function showAddrAt(la,ln,sx,sy){
   pop.style.display='block';
   pop.style.left=Math.min(sx+10,W-180)+'px';
   pop.style.top=Math.max(sy-70,60)+'px';
-  // 카카오맵 링크 설정 (위도,경도로 바로 이동)
-  var kakaoLink=document.getElementById('addrKakao');
-  if(kakaoLink) kakaoLink.href='https://map.kakao.com/link/map/위치,'+la+','+ln;
+  _addrLa=la; _addrLn=ln; // 좌표 저장
 
   // Kakao SDK 시도
   var _timer=setTimeout(function(){
