@@ -204,6 +204,16 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 #legend{position:fixed;bottom:14px;left:12px;z-index:100;background:rgba(0,0,0,.72);border-radius:10px;padding:8px 12px;font-size:11px;color:#fff;line-height:2}
 .lg{display:flex;align-items:center;gap:6px}
 .lgd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+@keyframes splashHide{
+  0%{opacity:1;visibility:visible;pointer-events:auto}
+  99%{opacity:0;visibility:visible;pointer-events:none}
+  100%{opacity:0;visibility:hidden;pointer-events:none;display:none}
+}
+@keyframes splashBar{
+  0%{width:0%}
+  100%{width:100%}
+}
 </style>
 
 <div id="map" class="pan"><div id="tl"></div><div id="mk"></div></div>
@@ -299,7 +309,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <!-- 스플래시 화면 -->
-<div id="splash" style="position:fixed;inset:0;z-index:9999;background:#f0e6f6;display:flex;align-items:stretch;transition:opacity 0.4s;cursor:pointer">
+<div id="splash" style="position:fixed;inset:0;z-index:9999;background:#f0e6f6;display:flex;align-items:stretch;cursor:pointer;animation:splashHide 0.5s ease 2.2s forwards" onclick="this.style.display='none'">
 
   <!-- 대동여지도 이미지 (왼쪽 전체) -->
   <div style="flex:1;min-width:0;position:relative;overflow:hidden">
@@ -322,7 +332,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 
   <!-- 하단 로딩바 -->
   <div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:#e0d0f0">
-    <div id="splashBar" style="height:5px;background:linear-gradient(90deg,#a06dc8,#c8a8e0);width:0%"></div>
+    <div id="splashBar" style="height:5px;background:linear-gradient(90deg,#a06dc8,#c8a8e0);width:0%;animation:splashBar 2s linear forwards"></div>
   </div>
 </div>
 
@@ -1692,42 +1702,7 @@ updateWorkerNames();
 updateWorkerNames();draw();buildList(DALL);
 fbLoad();
 
-// 스플래시 제거 - 클릭하거나 2초 후 자동 제거
-(function(){
-  var sp=document.getElementById('splash');
-  var bar=document.getElementById('splashBar');
-  if(!sp)return;
-
-  // 클릭으로도 제거 가능
-  sp.addEventListener('click',function(){hideSplash();});
-
-  function hideSplash(){
-    // 모든 splash 요소 제거
-    document.querySelectorAll('[id="splash"]').forEach(function(el){
-      el.style.transition='opacity 0.4s';
-      el.style.opacity='0';
-      el.style.pointerEvents='none';
-      setTimeout(function(){el.style.display='none';},420);
-    });
-  }
-
-  // 로딩바 애니메이션
-  if(bar){
-    var p=0;
-    var iv=setInterval(function(){
-      p+=2.5;
-      if(p>100)p=100;
-      bar.style.width=p+'%';
-      if(p>=100){
-        clearInterval(iv);
-        setTimeout(hideSplash, 200);
-      }
-    },50);
-  } else {
-    // 바 없으면 2초 후 바로
-    setTimeout(hideSplash, 2000);
-  }
-})(); // 즉시 Firebase 연결
+// 스플래시: CSS 애니메이션으로 자동 처리 // 즉시 Firebase 연결
 
 // ── REST API 폴링 (백업) ─────────────────────────────────────
 // Firebase SDK WebSocket이 막혀도 3초마다 REST로 동기화
