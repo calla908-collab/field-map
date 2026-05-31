@@ -896,6 +896,10 @@ function showLayerStats(){
 }
 
 // 인덱스로 라인 이동
+function flyToLine(){
+  flyToLineIdx(selLine, false);
+}
+
 function deleteLine(idx){
   if(idx<0||idx>=DLINES.length)return;
   if(!confirm('라인 '+(idx+1)+'번을 삭제할까요?'))return;
