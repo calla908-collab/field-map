@@ -895,6 +895,43 @@ function showLayerStats(){
 }
 
 // 인덱스로 라인 이동
+function deleteLine(idx){
+  if(idx<0||idx>=DLINES.length)return;
+  if(!confirm('라인 '+(idx+1)+'번을 삭제할까요?'))return;
+  var FB='https://landsurvey2027-default-rtdb.firebaseio.com/projects/'+PROJ_ID;
+  // Firebase에서 라인 배열 가져오기
+  fetch(FB+'/dxfLines.json',{cache:'no-store'})
+    .then(function(r){return r.json();})
+    .then(function(raw){
+      var lines=Array.isArray(raw)?raw:Object.keys(raw).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return raw[k];});
+      lines.splice(idx,1); // 해당 인덱스 제거
+      // 라인 상태도 재정렬
+      return fetch(FB+'/lineStatus.json',{cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(st){
+          var newSt={};
+          Object.keys(st||{}).forEach(function(k){
+            var n=parseInt(k.replace('line_',''));
+            if(n<idx) newSt[k]=(st)[k];
+            else if(n>idx) newSt['line_'+(n-1)]=(st)[k];
+          });
+          return Promise.all([
+            fetch(FB+'/dxfLines.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(lines)}),
+            fetch(FB+'/lineStatus.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(newSt)})
+          ]);
+        });
+    })
+    .then(function(){
+      // 로컬 업데이트
+      DLINES.splice(idx,1);
+      selLine=-1;selLineData=null;
+      document.getElementById('linePop').style.display='none';
+      draw();
+      alert('라인이 삭제됐어요.\n관리자 프로그램에서 🚀 지도 배포를 해주세요.');
+    })
+    .catch(function(e){alert('삭제 실패: '+e);});
+}
+
 function flyToLineIdx(idx, keepStats){
   if(idx<0||idx>=DLINES.length)return;
   // 텍스트는 건너뜀 - 다음 라인으로
