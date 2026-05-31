@@ -299,7 +299,7 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
 </div>
 
 <!-- 스플래시 화면 -->
-<div id="splash" style="position:fixed;inset:0;z-index:9999;background:#f0e6f6;display:flex;align-items:stretch;transition:opacity 0.6s">
+<div id="splash" style="position:fixed;inset:0;z-index:9999;background:#f0e6f6;display:flex;align-items:stretch;transition:opacity 0.4s;cursor:pointer">
 
   <!-- 대동여지도 이미지 (왼쪽 전체) -->
   <div style="flex:1;min-width:0;position:relative;overflow:hidden">
@@ -1692,21 +1692,40 @@ updateWorkerNames();
 updateWorkerNames();draw();buildList(DALL);
 fbLoad();
 
-// 스플래시 로딩바 + 2초 후 제거
+// 스플래시 제거 - 클릭하거나 2초 후 자동 제거
 (function(){
-  var bar=document.getElementById('splashBar');
   var sp=document.getElementById('splash');
-  if(!bar||!sp)return;
-  var p=0;
-  var t=setInterval(function(){
-    p+=2.5;
-    bar.style.width=Math.min(p,100)+'%';
-    if(p>=100){
-      clearInterval(t);
-      sp.style.opacity='0';
-      setTimeout(function(){sp.style.display='none';},500);
-    }
-  },50);
+  var bar=document.getElementById('splashBar');
+  if(!sp)return;
+
+  // 클릭으로도 제거 가능
+  sp.addEventListener('click',function(){hideSplash();});
+
+  function hideSplash(){
+    sp.style.transition='opacity 0.4s';
+    sp.style.opacity='0';
+    sp.style.pointerEvents='none';
+    setTimeout(function(){
+      sp.style.display='none';
+    },420);
+  }
+
+  // 로딩바 애니메이션
+  if(bar){
+    var p=0;
+    var iv=setInterval(function(){
+      p+=2.5;
+      if(p>100)p=100;
+      bar.style.width=p+'%';
+      if(p>=100){
+        clearInterval(iv);
+        setTimeout(hideSplash, 200);
+      }
+    },50);
+  } else {
+    // 바 없으면 2초 후 바로
+    setTimeout(hideSplash, 2000);
+  }
 })(); // 즉시 Firebase 연결
 
 // ── REST API 폴링 (백업) ─────────────────────────────────────
