@@ -273,7 +273,8 @@ html,body{height:100%;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun 
     <button id="lpDoneBtn" onclick="toggleLineDone()" style="flex:1;padding:9px;background:#2dc653;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✅ 완료 처리</button>
     <button id="lpUndoBtn" onclick="toggleLineDone()" style="display:none;flex:1;padding:9px;background:#f0f0f0;color:#666;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">↩ 완료 취소</button>
   </div>
-  <button onclick="flyToLine()" style="width:100%;padding:8px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📍 이 라인으로 이동</button>
+  <button onclick="flyToLine()" style="width:100%;padding:8px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:4px">📍 이 라인으로 이동</button>
+  <button onclick="deleteLine(selLine)" style="width:100%;padding:8px;background:#fff0f0;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">🗑 이 라인 삭제</button>
 </div>
 
 <div id="pop" onclick="event.stopPropagation()">
